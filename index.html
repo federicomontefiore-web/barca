@@ -73,6 +73,7 @@ button, input, select, textarea{ font:inherit; color:inherit; }
 body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); background:var(--navy); z-index:10; }
 .top-riga{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .titolo-barca{ font-family:Georgia,serif; font-size:23px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chip-ore.errore{ background:var(--ko); border-color:var(--ko); }
 .chip-ore{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff;
   border-radius:999px; padding:8px 14px; min-height:44px; font-size:17px; font-weight:600; cursor:pointer; white-space:nowrap; }
 .riepilogo{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
@@ -547,6 +548,13 @@ const DB = {
       t.oncomplete = () => ok(); t.onerror = () => ko(t.error);
     });
   },
+  chiavi(store){
+    return new Promise((ok, ko) => {
+      if (!this.db) return ok(new Set());
+      const r = this.db.transaction(store).objectStore(store).getAllKeys();
+      r.onsuccess = () => ok(new Set(r.result)); r.onerror = () => ko(r.error);
+    });
+  },
   tutte(store){
     return new Promise((ok, ko) => {
       if (!this.db) return ok({});
@@ -571,10 +579,16 @@ let timerSalva = null;
 /* Salvataggio automatico (con piccolo ritardo per raggruppare le modifiche) */
 function salva(){
   clearTimeout(timerSalva);
-  timerSalva = setTimeout(async () => {
-    try { await DB.scrivi("dati", "stato", S); }
-    catch(e){ erroreMemoria(e); }
-  }, 250);
+  timerSalva = setTimeout(salvaOra, 250);
+}
+/* Salva subito: segna l'ora di ogni elemento cambiato (serve alla sincronizzazione) e scrive nel telefono */
+function salvaOra(){
+  clearTimeout(timerSalva);
+  if (!S) return Promise.resolve();
+  const n = timbra();
+  if (n && SY){ SY.modifiche = (SY.modifiche || 0) + n; salvaSY(); programmaSync(4000); }
+  aggiornaIndicatore();
+  return DB.scrivi("dati", "stato", S).catch(erroreMemoria);
 }
 function erroreMemoria(e){
   const pieno = e && (e.name === "QuotaExceededError" || /quota|space|spazio/i.test(e.message || ""));
@@ -587,6 +601,7 @@ function erroreMemoria(e){
 function normalizza(d){
   d.barca = Object.assign({ nome:"", tipo:"vela", lunghezza:10, modello:"", porto:"", oreMotore:0, storicoOre:[], ultimoBackup:"" }, d.barca || {});
   d.sistemi = d.sistemi || []; d.interventi = d.interventi || []; d.daFare = d.daFare || [];
+  d.eliminati = d.eliminati || {};
   d.ui = Object.assign({ nomi:true, tema:"auto" }, d.ui || {});
   d.sistemi.forEach(s => {
     s.foto = s.foto || [];
@@ -841,7 +856,8 @@ function renderTop(){
   const btn = (k, col, testo) => `<button data-act="filtraStato" data-v="${k}"><span class="pallino" style="background:${col}"></span>${testo}</button>`;
   $("#top").innerHTML = `<div class="top-riga">
       <div class="titolo-barca">${S.barca.tipo === "vela" ? "⛵" : "🛥️"} ${esc(S.barca.nome || "La mia barca")}</div>
-      <button class="chip-ore" data-act="vai" data-v="ore" aria-label="Ore motore">⏱️ ${fmtOre(S.barca.oreMotore)} h</button>
+      <div style="display:flex;gap:8px">${SY ? `<button class="chip-ore" id="syncChip" data-act="apriSync"></button>` : ""}
+      <button class="chip-ore" data-act="vai" data-v="ore" aria-label="Ore motore">⏱️ ${fmtOre(S.barca.oreMotore)} h</button></div>
     </div>
     <div class="riepilogo" aria-label="Riepilogo">
       ${btn("ok", "var(--ok)", `${r.ok} ${r.ok === 1 ? "sistema" : "sistemi"} OK`)}
@@ -850,6 +866,7 @@ function renderTop(){
       ${r.nv ? btn("nv", "var(--nv)", `${r.nv} non ${r.nv === 1 ? "verificato" : "verificati"}`) : ""}
       <button data-act="vai" data-v="dafare">📅 ${r.scad} ${r.scad === 1 ? "scadenza" : "scadenze"} nei prossimi 30 giorni</button>
     </div>`;
+  aggiornaIndicatore();
 }
 function renderNav(){
   const aperti = S.daFare.filter(t => !t.fatto).length + S.sistemi.filter(s => effStato(s) === "ko").length;
@@ -869,8 +886,9 @@ function renderMain(){
 function aggiornaTutto(){
   if (!S || S.primoAvvio){ renderTutto(); return; }
   renderTop(); renderNav();
-  // Non ridisegno la schermata Ore mentre si sta scrivendo un valore
-  if (!(vista === "ore" && document.activeElement && document.activeElement.id === "oreNuove")) renderMain();
+  // Non ridisegno la schermata se si sta scrivendo in un campo
+  const ae = document.activeElement;
+  if (!(ae && $("#main").contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.type !== "checkbox")) renderMain();
   sheets.forEach(sh => { if (sh.opts.vivo) disegnaSheet(sh); });
 }
 
@@ -896,6 +914,7 @@ function viewBenvenuto(){
     <p class="muted piccolo" style="text-align:center;margin:6px 0 14px">Gli esempi si cancellano con un tasto da Impostazioni.</p>
     <button class="btn blocco" data-act="avvia" data-v="zero">Inizia da zero</button>
     <button class="btn blocco" data-act="importa" style="margin-top:10px">📥 Ho già un backup: importalo</button>
+    <button class="btn blocco" data-act="collegaNuovo" style="margin-top:10px">☁️ I dati sono già su GitHub: collegati</button>
   </div>`;
 }
 
@@ -1085,6 +1104,12 @@ function viewImpostazioni(){
       <p class="muted piccolo" id="spazio" style="margin-top:12px"></p>
     </div>
 
+    </section><section><h2>Sincronizzazione</h2>
+    <div class="card">${SY ? `<p style="font-weight:700">${testoSyncLungo()}</p>
+        <p class="muted piccolo">Collegato a <b>${esc(SY.owner + "/" + SY.repo)}</b>. Ultima volta: ${fmtDataOra(SY.ultimaSync)}</p>
+        <button class="btn primary blocco" data-act="apriSync">☁️ Dettagli e sincronizza ora</button>`
+      : `<p>Salva i dati anche su GitHub, così telefono di papà, il tuo e il PC restano allineati da soli. Senza internet si lavora come sempre: le modifiche partono appena torna la rete.</p>
+        <button class="btn primary blocco" data-act="apriSync">☁️ Collega a GitHub</button>`}</div>
     </section><section><h2>Registro per il cantiere</h2>
     <div class="card"><p>Una pagina con tutti gli interventi e le spese, da stampare o salvare come PDF.</p>
       <button class="btn blocco" data-act="stampa">🖨️ Stampa / Salva PDF</button></div>
@@ -1229,6 +1254,7 @@ async function idrataFoto(root){
     const id = img.dataset.foto;
     let d = fotoCache.get(id);
     if (!d){ try { d = await DB.leggi("foto", id); if (d) fotoCache.set(id, d); } catch(_){} }
+    if (!d) d = await scaricaFoto(id);
     if (d) img.src = d;
   }
 }
@@ -1464,7 +1490,7 @@ function formIntervento(opz = {}){
         if (fb && fb.dataset.f === "salva") salvaIntervento(el);
         if (fb && fb.dataset.f === "elimina" && await conferma("Eliminare questo intervento dal registro?")){
           S.interventi = S.interventi.filter(i => i.id !== esist.id);
-          await DB.elimina("foto", [...esist.fotoPrima, ...esist.fotoDopo, ...nuove]).catch(() => {});
+          await eliminaFoto([...esist.fotoPrima, ...esist.fotoDopo, ...nuove]).catch(() => {});
           salvato = true; salva(); chiudiTop(); toast("Intervento eliminato");
         }
       });
@@ -1476,7 +1502,7 @@ function formIntervento(opz = {}){
         apriVisore(id, () => { lista.splice(lista.indexOf(id), 1); daEliminare.push(id); fotoBox(); });
       }, true);
     }
-  }), { allaChiusura(){ if (!salvato && nuove.length) DB.elimina("foto", nuove).catch(() => {}); } });
+  }), { allaChiusura(){ if (!salvato && nuove.length) eliminaFoto(nuove).catch(() => {}); } });
 
   function salvaIntervento(el){
     const v = x => $(x, el).value.trim();
@@ -1493,7 +1519,7 @@ function formIntervento(opz = {}){
     }
     if (f.oreMotore !== "" && f.oreMotore > (Number(S.barca.oreMotore) || 0)) aggiornaOre(f.oreMotore);
     if (opz.todoId){ const t = S.daFare.find(x => x.id === opz.todoId); if (t){ t.fatto = true; t.fattoIl = f.data; } }
-    if (daEliminare.length) DB.elimina("foto", daEliminare).catch(() => {});
+    if (daEliminare.length) eliminaFoto(daEliminare).catch(() => {});
     salvato = true; salva(); chiudiTop(); toast("Intervento salvato ✓");
   }
 }
@@ -1583,9 +1609,10 @@ $("#fileBackup").addEventListener("change", async e => {
     const coppie = Object.entries(b.foto || {});
     for (let i = 0; i < coppie.length; i += 20) await DB.molti("foto", coppie.slice(i, i + 20));
     fotoCache.clear();
-    S = normalizza(b.dati); delete S.primoAvvio;
+    S = normalizza(b.dati); delete S.primoAvvio; fotografa();
     await DB.scrivi("dati", "stato", S);
     applicaTema(); vista = "barca"; renderTutto(); toast("Backup ripristinato ✓");
+    if (SY){ SY.fotoInviate = []; salvaSY(); sincronizza(); }
   } catch(err){
     if (err && err.name === "QuotaExceededError") erroreMemoria(err);
     else avviso("Non riesco a leggere il backup: " + esc(err.message));
@@ -1612,6 +1639,328 @@ function stampaRegistro(){
     <table>${Object.keys(perAnno).sort().reverse().map(a => `<tr><td>${a}</td><td class="num">${fmtEuro(perAnno[a])}</td></tr>`).join("")}
       <tr><th>Totale</th><th class="num">${fmtEuro(Object.values(perAnno).reduce((t, x) => t + x, 0))}</th></tr></table>`;
   setTimeout(() => window.print(), 50);
+}
+
+/* =========================================================
+   SINCRONIZZAZIONE CON GITHUB
+   - I dati stanno nel file dati.json di un repository PRIVATO,
+     le foto nella cartella foto/ dello stesso repository.
+   - Ogni elemento (sistema, intervento, lavoro) porta l'ora
+     dell'ultima modifica ("mod"). Quando due copie si incontrano,
+     per ogni elemento vince la versione modificata per ultima.
+   - Le cancellazioni sono registrate in "eliminati", così un
+     telefono con la copia vecchia non le fa ricomparire.
+   - Senza internet si lavora sul telefono; le modifiche restano
+     in coda e partono appena torna la connessione.
+   ========================================================= */
+const CAMPI_BARCA = ["nome","tipo","lunghezza","modello","porto","oreDaEsempio"];
+const TIPI_REC = ["sistemi","interventi","daFare"];
+let snap = new Map();            // "firma" dell'ultimo stato salvato, per capire cosa è cambiato
+let SY = null;                   // collegamento GitHub (solo su questo dispositivo, mai nei backup)
+let syncStato = "off";           // off | ok | sync | offline | errore
+let syncInCorso = false, syncDiNuovo = false, timerSync = null, fotoInCorso = false;
+
+/* Testo confrontabile di un oggetto (chiavi in ordine) */
+function stabile(v){
+  if (Array.isArray(v)) return "[" + v.map(stabile).join(",") + "]";
+  if (v && typeof v === "object") return "{" + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ":" + stabile(v[k])).join(",") + "}";
+  return JSON.stringify(v === undefined ? null : v);
+}
+const firmaRec = r => { const o = Object.assign({}, r); delete o.mod; return stabile(o); };
+function calcolaFirme(){
+  const m = new Map();
+  TIPI_REC.forEach(t => S[t].forEach(r => m.set(t + ":" + r.id, firmaRec(r))));
+  m.set("barca", stabile(CAMPI_BARCA.map(k => S.barca[k] ?? "")));
+  m.set("ore", String(S.barca.oreMotore));
+  (S.barca.storicoOre || []).forEach(r => m.set("so:" + r.data, String(r.ore)));
+  return m;
+}
+function fotografa(){ if (S) snap = calcolaFirme(); }
+/* Segna l'ora sugli elementi cambiati dall'ultimo salvataggio; restituisce quanti */
+function timbra(){
+  const ora = Date.now(), nuove = calcolaFirme(); let n = 0;
+  TIPI_REC.forEach(t => S[t].forEach(r => { const k = t + ":" + r.id; if (snap.get(k) !== nuove.get(k)){ r.mod = ora; n++; } }));
+  if (snap.get("barca") !== nuove.get("barca")){ S.barca.mod = ora; n++; }
+  if (snap.get("ore") !== nuove.get("ore")){ S.barca.oreMod = ora; n++; }
+  (S.barca.storicoOre || []).forEach(r => { const k = "so:" + r.data; if (snap.get(k) !== nuove.get(k)){ r.mod = ora; n++; } });
+  for (const k of snap.keys()){
+    if (nuove.has(k) || k === "barca" || k === "ore") continue;
+    S.eliminati[k.startsWith("so:") ? k : k.slice(k.indexOf(":") + 1)] = ora; n++;
+  }
+  snap = nuove; return n;
+}
+/* La parte dei dati che viene condivisa (le preferenze di aspetto restano locali) */
+function forma(d){
+  const b = {};
+  CAMPI_BARCA.concat(["mod","oreMotore","oreMod","storicoOre"]).forEach(k => { if (d.barca && d.barca[k] !== undefined) b[k] = d.barca[k]; });
+  return { barca:b, sistemi:d.sistemi || [], interventi:d.interventi || [], daFare:d.daFare || [], eliminati:d.eliminati || {} };
+}
+const estrai = () => clona(forma(S));
+/* Unisce due copie dei dati elemento per elemento */
+function unisci(L, R){
+  const el = Object.assign({}, R.eliminati);
+  Object.entries(L.eliminati).forEach(([k, v]) => { if (!(el[k] >= v)) el[k] = v; });
+  const limite = Date.now() - 400 * 86400000;           // le cancellazioni più vecchie di 400 giorni si dimenticano
+  Object.keys(el).forEach(k => { if (el[k] < limite) delete el[k]; });
+  const U = { eliminati:el };
+  TIPI_REC.forEach(t => {
+    const m = new Map(); R[t].forEach(r => m.set(r.id, r));
+    L[t].forEach(r => { const x = m.get(r.id); if (!x || (r.mod || 0) >= (x.mod || 0)) m.set(r.id, r); });
+    U[t] = [...m.values()].filter(r => !(el[r.id] >= (r.mod || 0)));
+  });
+  const lb = L.barca, rb = R.barca;
+  const info = (rb.mod || 0) > (lb.mod || 0) ? rb : lb, ore = (rb.oreMod || 0) > (lb.oreMod || 0) ? rb : lb;
+  const so = new Map(); (rb.storicoOre || []).forEach(x => so.set(x.data, x));
+  (lb.storicoOre || []).forEach(x => { const y = so.get(x.data); if (!y || (x.mod || 0) >= (y.mod || 0)) so.set(x.data, x); });
+  U.barca = {};
+  CAMPI_BARCA.forEach(k => { if (info[k] !== undefined) U.barca[k] = info[k]; });
+  U.barca.mod = info.mod || 0; U.barca.oreMotore = ore.oreMotore ?? 0; U.barca.oreMod = ore.oreMod || 0;
+  U.barca.storicoOre = [...so.values()].filter(x => !(el["so:" + x.data] >= (x.mod || 0))).sort((a, b) => a.data.localeCompare(b.data));
+  return U;
+}
+/* Applica i dati uniti, riusando gli oggetti esistenti (così i moduli aperti restano validi) */
+function applica(U){
+  CAMPI_BARCA.forEach(k => { if (U.barca[k] !== undefined) S.barca[k] = U.barca[k]; else delete S.barca[k]; });
+  ["mod","oreMotore","oreMod","storicoOre"].forEach(k => S.barca[k] = U.barca[k]);
+  TIPI_REC.forEach(t => {
+    const loc = new Map(S[t].map(r => [r.id, r]));
+    S[t] = U[t].map(r => { const o = loc.get(r.id); if (!o) return r; Object.keys(o).forEach(k => { if (!(k in r)) delete o[k]; }); return Object.assign(o, r); });
+  });
+  S.eliminati = U.eliminati;
+  normalizza(S); fotografa();
+}
+
+/* ---------- Chiamate a GitHub ---------- */
+function salvaSY(){ if (SY) DB.scrivi("dati", "sync", SY).catch(() => {}); }
+function programmaSync(ms){ if (!SY) return; clearTimeout(timerSync); timerSync = setTimeout(() => sincronizza(), ms); }
+async function gh(metodo, percorso, corpo, cfg = SY){
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}` + (percorso ? "/" + percorso : "");
+  try {
+    return await fetch(url, { method:metodo, cache:"no-store",
+      headers:Object.assign({ "Authorization":"Bearer " + cfg.token, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28" }, corpo ? { "Content-Type":"application/json" } : {}),
+      body: corpo ? JSON.stringify(corpo) : undefined });
+  } catch(e){ const err = new Error("Nessuna connessione con GitHub"); err.offline = true; throw err; }
+}
+async function ghErrore(r){
+  let m = ""; try { m = (await r.json()).message || ""; } catch(_){}
+  if (r.status === 401) return new Error("Il token non è valido o è scaduto. Creane uno nuovo su GitHub e inseriscilo in “Modifica collegamento”.");
+  if (r.status === 403) return new Error("GitHub ha rifiutato l'accesso: controlla che il token abbia il permesso “Contents: Read and write” su questo repository. (" + m + ")");
+  if (r.status === 404) return new Error("Repository non trovato: controlla il nome (utente/nome) e che il token possa accedervi.");
+  return new Error(`GitHub ha risposto con errore ${r.status}${m ? ": " + m : ""}`);
+}
+const percorsoFile = p => "contents/" + p.split("/").map(encodeURIComponent).join("/");
+async function ghLeggiFile(p){
+  const r = await gh("GET", percorsoFile(p) + "?ref=" + encodeURIComponent(SY.branch || "main"));
+  if (r.status === 404) return null;
+  if (!r.ok) throw await ghErrore(r);
+  const j = await r.json();
+  let b64 = j.content || "";
+  if (!b64 && j.size > 0){                       // file oltre 1 MB: si legge in un altro modo
+    const r2 = await gh("GET", "git/blobs/" + j.sha);
+    if (!r2.ok) throw await ghErrore(r2);
+    b64 = (await r2.json()).content || "";
+  }
+  return { sha:j.sha, b64:b64.replace(/\s/g, "") };
+}
+async function ghScriviFile(p, b64, sha, messaggio){
+  const corpo = { message:messaggio, content:b64, branch:SY.branch || "main" };
+  if (sha) corpo.sha = sha;
+  const r = await gh("PUT", percorsoFile(p), corpo);
+  if (r.status === 409 || r.status === 422){ const e = new Error("conflitto"); e.conflitto = true; throw e; }
+  if (!r.ok) throw await ghErrore(r);
+  return (await r.json()).content.sha;
+}
+async function ghEliminaFile(p, messaggio){
+  const f = await ghLeggiFile(p); if (!f) return;
+  const r = await gh("DELETE", percorsoFile(p), { message:messaggio, sha:f.sha, branch:SY.branch || "main" });
+  if (!r.ok && r.status !== 404) throw await ghErrore(r);
+}
+function testoInB64(t){
+  const by = new TextEncoder().encode(t); let s = "";
+  for (let i = 0; i < by.length; i += 0x8000) s += String.fromCharCode.apply(null, by.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64InTesto(b){
+  const s = atob(b), by = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) by[i] = s.charCodeAt(i);
+  return new TextDecoder().decode(by);
+}
+
+/* ---------- La sincronizzazione vera e propria ---------- */
+async function sincronizza(manuale){
+  if (!SY || !SY.token || !S) return;
+  if (syncInCorso){ syncDiNuovo = true; return; }
+  if (!navigator.onLine){
+    syncStato = "offline"; aggiornaIndicatore();
+    if (manuale) toast("📴 Nessuna connessione. Le modifiche restano sul telefono e partono appena torna internet.");
+    return;
+  }
+  syncInCorso = true; syncStato = "sync"; aggiornaIndicatore();
+  let riuscita = false;
+  try {
+    for (let tentativo = 0; ; tentativo++){
+      const remoto = await ghLeggiFile("dati.json");
+      let datiR = null;
+      if (remoto){
+        try { const j = JSON.parse(b64InTesto(remoto.b64)); datiR = forma(j.dati || j); }
+        catch(e){ throw new Error("Il file dati.json su GitHub è danneggiato. Ripristina un backup oppure eliminalo da GitHub."); }
+      }
+      // Da qui fino all'applicazione non ci sono attese: nessuna modifica può andare persa
+      salvaOra();
+      const inAttesa = SY.modifiche || 0, prima = stabile(forma(S));
+      applica(datiR ? unisci(estrai(), clona(datiR)) : estrai());
+      const unito = estrai();
+      if (stabile(unito) !== prima){ DB.scrivi("dati", "stato", S).catch(erroreMemoria); aggiornaTutto(); }
+      if (!datiR || stabile(unito) !== stabile(datiR)){
+        const testo = JSON.stringify({ app:"diario-bordo-barca", versione:1, aggiornato:new Date().toISOString(), da:SY.dispositivo || "", dati:unito }, null, 1);
+        try { await ghScriviFile("dati.json", testoInB64(testo), remoto && remoto.sha, `Aggiornamento da ${SY.dispositivo || "dispositivo"} (${fmtData(oggi())})`); }
+        catch(e){ if (e.conflitto && tentativo < 5) continue; throw e; }   // qualcun altro ha appena scritto: rileggo e riunisco
+      }
+      SY.modifiche = Math.max(0, (SY.modifiche || 0) - inAttesa);
+      break;
+    }
+    SY.ultimaSync = Date.now(); SY.ultimoErrore = ""; salvaSY();
+    syncStato = "ok"; riuscita = true;
+    if (manuale) toast("☁️ Sincronizzato ✓");
+  } catch(e){
+    if (e.offline){ syncStato = "offline"; if (manuale) toast("📴 GitHub non è raggiungibile. Riprovo appena torna la connessione."); }
+    else { syncStato = "errore"; SY.ultimoErrore = e.message; salvaSY(); if (manuale) avviso("⚠️ Sincronizzazione non riuscita.<br>" + esc(e.message)); }
+  } finally {
+    syncInCorso = false; aggiornaIndicatore();
+    if (riuscita){
+      sincronizzaFoto();
+      if (syncDiNuovo || SY && SY.modifiche){ syncDiNuovo = false; programmaSync(2000); }
+    }
+  }
+}
+
+/* ---------- Foto ---------- */
+function fotoUsate(){
+  const u = new Set();
+  S.sistemi.forEach(x => x.foto.forEach(i => u.add(i)));
+  S.interventi.forEach(x => x.fotoPrima.concat(x.fotoDopo).forEach(i => u.add(i)));
+  return u;
+}
+function eliminaFoto(ids){
+  ids = (ids || []).filter(Boolean); if (!ids.length) return Promise.resolve();
+  ids.forEach(id => fotoCache.delete(id));
+  if (SY){
+    const inv = new Set(SY.fotoInviate || []), coda = new Set(SY.fotoDaEliminare || []);
+    ids.forEach(id => { if (inv.has(id)){ inv.delete(id); coda.add(id); } });
+    SY.fotoInviate = [...inv]; SY.fotoDaEliminare = [...coda]; salvaSY();
+  }
+  return DB.elimina("foto", ids);
+}
+async function scaricaFoto(id){
+  if (!SY || !navigator.onLine) return null;
+  try {
+    const f = await ghLeggiFile(`foto/${id}.jpg`); if (!f) return null;
+    const d = "data:image/jpeg;base64," + f.b64;
+    await DB.scrivi("foto", id, d); fotoCache.set(id, d);
+    if (!(SY.fotoInviate || []).includes(id)){ SY.fotoInviate = (SY.fotoInviate || []).concat(id); salvaSY(); }
+    return d;
+  } catch(_){ return null; }
+}
+async function sincronizzaFoto(){
+  if (fotoInCorso || !SY || !S) return; fotoInCorso = true;
+  try {
+    for (const id of (SY.fotoDaEliminare || []).slice()){
+      await ghEliminaFile(`foto/${id}.jpg`, "Foto eliminata");
+      SY.fotoDaEliminare = SY.fotoDaEliminare.filter(x => x !== id); salvaSY();
+    }
+    const locali = await DB.chiavi("foto");
+    for (const id of fotoUsate()){
+      if (!SY) break;
+      if ((SY.fotoInviate || []).includes(id) || !locali.has(id)) continue;
+      const d = await DB.leggi("foto", id); if (!d) continue;
+      try { await ghScriviFile(`foto/${id}.jpg`, d.split(",")[1], null, "Nuova foto"); }
+      catch(e){ if (!e.conflitto) throw e; }          // già presente su GitHub
+      SY.fotoInviate = (SY.fotoInviate || []).concat(id); salvaSY();
+    }
+    for (const id of fotoUsate()){
+      if (!SY) break;
+      if (!locali.has(id) && await scaricaFoto(id)) idrataFoto(document);
+    }
+  } catch(_){ /* riprova alla prossima sincronizzazione */ }
+  finally { fotoInCorso = false; }
+}
+
+/* ---------- Indicatore e pannello ---------- */
+function fmtDataOra(ms){
+  if (!ms) return "mai";
+  const d = new Date(ms);
+  return d.toLocaleDateString("it-IT", { day:"numeric", month:"short" }) + " alle " + d.toLocaleTimeString("it-IT", { hour:"2-digit", minute:"2-digit" });
+}
+function testoSyncLungo(){
+  const n = SY ? SY.modifiche || 0 : 0;
+  if (syncStato === "sync") return "🔄 Sincronizzazione in corso…";
+  if (syncStato === "offline") return n ? `📴 Senza connessione: ${n} ${n === 1 ? "modifica salvata" : "modifiche salvate"} sul telefono, partono appena torna internet.` : "📴 Senza connessione. Tutto è salvato sul telefono.";
+  if (syncStato === "errore") return "⚠️ L'ultima sincronizzazione non è riuscita.";
+  return n ? `⏳ ${n} ${n === 1 ? "modifica" : "modifiche"} da inviare` : "☁️ Tutto sincronizzato";
+}
+function aggiornaIndicatore(){
+  const el = $("#syncChip");
+  if (el && SY){
+    const n = SY.modifiche || 0;
+    el.textContent = syncStato === "sync" ? "🔄" : syncStato === "offline" ? (n ? `📴 ${n}` : "📴") : syncStato === "errore" ? "⚠️" : n ? `⏳ ${n}` : "☁️ ✓";
+    el.classList.toggle("errore", syncStato === "errore");
+    el.setAttribute("aria-label", "Sincronizzazione: " + testoSyncLungo());
+  }
+  sheets.filter(sh => sh.opts.sync).forEach(disegnaSheet);
+}
+function apriSync(){ if (SY) apriSheet(schedaSync, { sync:true }); else apriSheet(formSync); }
+function schedaSync(){
+  if (!SY) return null;
+  return { titolo:"☁️ Sincronizzazione", html:`
+    <div class="card"><div style="font-size:21px;font-weight:700">${testoSyncLungo()}</div>
+      ${syncStato === "errore" && SY.ultimoErrore ? `<p class="muted" style="margin-top:8px">${esc(SY.ultimoErrore)}</p>` : ""}
+      <dl class="dati" style="margin-top:12px">
+        <dt>Ultima volta</dt><dd>${fmtDataOra(SY.ultimaSync)}</dd>
+        <dt>Repository</dt><dd>${esc(SY.owner + "/" + SY.repo)}</dd>
+        <dt>Questo dispositivo</dt><dd>${esc(SY.dispositivo || "—")}</dd>
+        ${(SY.fotoDaEliminare || []).length ? `<dt>Foto da eliminare</dt><dd>${SY.fotoDaEliminare.length}</dd>` : ""}
+      </dl></div>
+    <button class="btn primary blocco" data-act="syncOra" ${syncStato === "sync" ? "disabled" : ""}>🔄 Sincronizza ora</button>
+    <p class="muted piccolo" style="margin-top:12px">L'app si sincronizza da sola: quando si apre, poco dopo ogni modifica e ogni tre minuti. Senza internet tutto viene salvato sul telefono e inviato appena torna la connessione.</p>
+    <div class="fila" style="margin-top:20px"><button class="btn" data-act="configSync">⚙️ Modifica collegamento</button>
+      <button class="btn danger-ghost" data-act="scollegaSync">Scollega</button></div>` };
+}
+function formSync(){
+  const c = SY || {};
+  return { titolo:"Collega a GitHub", html:`
+    <p>Inserisci il repository <b>privato</b> dove salvare i dati e il token di accesso. Si fa una volta sola su ogni telefono o PC.</p>
+    <label class="et" for="gRepo">Repository</label>
+    <input class="campo" id="gRepo" value="${esc(c.owner ? c.owner + "/" + c.repo : "")}" placeholder="utente/barca-dati" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label class="et" for="gTok">Token di accesso</label>
+    <input class="campo" id="gTok" type="password" value="${esc(c.token || "")}" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="et" for="gDisp">Nome di questo dispositivo</label>
+    <input class="campo" id="gDisp" value="${esc(c.dispositivo || "")}" placeholder="es. Telefono papà">
+    <div class="barra-salva"><button class="btn primary blocco" data-f="collega">Collega e sincronizza</button></div>
+    <p class="muted piccolo">Il token resta salvato solo su questo dispositivo e non finisce mai nei file di backup.</p>`,
+    monta(el){ $("[data-f=collega]", el).addEventListener("click", () => collegaGitHub(el)); } };
+}
+async function collegaGitHub(el){
+  const btn = $("[data-f=collega]", el);
+  const rep = $("#gRepo", el).value.trim().replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
+  const parti = rep.split("/"), token = $("#gTok", el).value.trim(), disp = $("#gDisp", el).value.trim();
+  if (parti.length !== 2 || !parti[0] || !parti[1]){ toast("Scrivi il repository come utente/nome, es. mario/barca-dati"); return; }
+  if (!token){ toast("Incolla il token di accesso"); return; }
+  const ripristina = () => { btn.disabled = false; btn.textContent = "Collega e sincronizza"; };
+  btn.disabled = true; btn.textContent = "Controllo il collegamento…";
+  const prova = { owner:parti[0], repo:parti[1], token, dispositivo:disp };
+  try {
+    const r = await gh("GET", "", null, prova);
+    if (!r.ok) throw await ghErrore(r);
+    const info = await r.json();
+    if (info.private === false && !await conferma("⚠️ Questo repository è <b>pubblico</b>: chiunque potrebbe vedere i dati e le foto della barca.<br>Rendilo privato da GitHub prima di continuare.", "Continua comunque")){ ripristina(); return; }
+    prova.branch = info.default_branch || "main";
+    const stesso = SY && SY.owner === prova.owner && SY.repo === prova.repo;
+    SY = Object.assign(stesso ? SY : { modifiche:S.sistemi.length + S.interventi.length + S.daFare.length, fotoInviate:[], fotoDaEliminare:[], ultimaSync:0 }, prova);
+    salvaSY(); chiudiTop(); aggiornaTutto();
+    await sincronizza(true);
+  } catch(e){
+    avviso("Collegamento non riuscito.<br>" + esc(e.message)); ripristina();
+  }
 }
 
 /* =========================================================
@@ -1644,14 +1993,14 @@ const AZ = {
     S.sistemi = S.sistemi.filter(x => x.id !== s.id);
     S.interventi = S.interventi.filter(i => i.sistemaId !== s.id);
     S.daFare = S.daFare.filter(t => t.sistemaId !== s.id);
-    DB.elimina("foto", foto).catch(() => {}); salva(); chiudiTop(); toast("Sistema eliminato");
+    eliminaFoto(foto).catch(() => {}); salva(); chiudiTop(); toast("Sistema eliminato");
   },
   async fotoSistema(el){ const s = trova(el.dataset.id); const ids = await scegliFoto(); if (ids.length){ s.foto.push(...ids); salva(); aggiornaTutto(); toast("Foto salvata ✓"); } },
   vediFoto(el){
     const id = el.dataset.fotoId, ctx = el.dataset.ctx || "";
     if (ctx.startsWith("sis:")){
       const s = trova(ctx.slice(4));
-      apriVisore(id, () => { s.foto = s.foto.filter(x => x !== id); DB.elimina("foto", [id]).catch(() => {}); salva(); aggiornaTutto(); });
+      apriVisore(id, () => { s.foto = s.foto.filter(x => x !== id); eliminaFoto([id]).catch(() => {}); salva(); aggiornaTutto(); });
     } else apriVisore(id, null);
   },
   oreQuick(el){ const i = $("#oreNuove"); i.value = Math.round(((Number(i.value) || 0) + Number(el.dataset.v)) * 10) / 10; },
@@ -1681,18 +2030,33 @@ const AZ = {
     S.daFare = S.daFare.filter(t => !t.esempio && !ids.has(t.sistemaId));
     S.barca.storicoOre = (S.barca.storicoOre || []).filter(r => !r.esempio);
     if (S.barca.oreDaEsempio){ S.barca.oreMotore = S.barca.storicoOre.length ? S.barca.storicoOre[S.barca.storicoOre.length - 1].ore : 0; delete S.barca.oreDaEsempio; }
-    DB.elimina("foto", foto).catch(() => {}); salva(); aggiornaTutto(); toast("Dati di esempio cancellati ✓");
+    eliminaFoto(foto).catch(() => {}); salva(); aggiornaTutto(); toast("Dati di esempio cancellati ✓");
   },
   async cancellaTutto(){
     if (!await conferma("Cancellare <b>tutti</b> i dati di questa app?<br>Sistemi, interventi, foto e impostazioni verranno eliminati da questo telefono.", "Sì, cancella tutto")) return;
-    if (!await conferma("Ultima conferma: l'operazione non si può annullare.", "Cancella definitivamente")) return;
+    if (!await conferma(`Ultima conferma: l'operazione non si può annullare.${SY ? "<br>I dati su GitHub non vengono toccati: questo dispositivo viene solo scollegato." : ""}`, "Cancella definitivamente")) return;
     await DB.svuota("foto").catch(() => {}); await DB.svuota("dati").catch(() => {});
+    clearTimeout(timerSync); SY = null; syncStato = "off";
     fotoCache.clear(); S = null; vista = "barca"; renderTutto();
+  },
+  apriSync(){ apriSync(); },
+  syncOra(){ sincronizza(true); },
+  configSync(){ apriSheet(formSync); },
+  async scollegaSync(){
+    if (!await conferma("Scollegare questo dispositivo da GitHub?<br>I dati restano sia qui sia su GitHub: smettono solo di sincronizzarsi.", "Scollega")) return;
+    clearTimeout(timerSync); SY = null; syncStato = "off";
+    await DB.elimina("dati", ["sync"]).catch(() => {});
+    chiudiTop(); toast("Dispositivo scollegato");
+  },
+  collegaNuovo(){
+    S = normalizza({ barca:{ nome:"", tipo:tipoBenvenuto, lunghezza:10 } });
+    fotografa(); salvaOra(); vista = "barca"; renderTutto(); apriSheet(formSync);
   },
   wTipo(el){ tipoBenvenuto = el.dataset.v; $$(".benvenuto .seg button").forEach(b => b.classList.toggle("on", b.dataset.v === tipoBenvenuto)); },
   avvia(el){
     S = normalizza({ barca:{ nome:$("#wNome").value.trim() || (el.dataset.v === "esempio" ? "Stella Marina" : "La mia barca"),
       tipo:tipoBenvenuto, lunghezza:Number($("#wLung").value) || 10 } });
+    fotografa();
     if (el.dataset.v === "esempio") datiEsempio();
     salva(); vista = "barca"; renderTutto();
     if (el.dataset.v === "zero") setTimeout(() => toast("Tocca “+ Aggiungi sistema” per iniziare"), 300);
@@ -1740,7 +2104,18 @@ async function avvio(){
   try { await DB.apri(); S = await DB.leggi("dati", "stato") || null; }
   catch(e){ S = null; setTimeout(() => avviso("⚠️ Questo browser non permette di salvare i dati (forse sei in navigazione privata). Puoi provare l'app, ma alla chiusura i dati si perdono."), 500); }
   if (S) normalizza(S);
+  try { SY = await DB.leggi("dati", "sync") || null; } catch(_){ SY = null; }
+  if (SY) syncStato = navigator.onLine ? "ok" : "offline";
+  fotografa();
   applicaTema(); renderTutto();
+  if (SY && S) setTimeout(() => sincronizza(), 600);
+  window.addEventListener("online", () => sincronizza());
+  window.addEventListener("offline", () => { if (SY){ syncStato = "offline"; aggiornaIndicatore(); } });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden"){ if (S) salvaOra(); return; }
+    if (SY && Date.now() - (SY.ultimaSync || 0) > 30000) sincronizza();
+  });
+  setInterval(() => { if (document.visibilityState === "visible") sincronizza(); }, 180000);
   // Chiede al browser di non cancellare i dati per liberare spazio
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   // Funzionamento offline completo quando l'app è pubblicata su un sito (serve il file sw.js accanto)
