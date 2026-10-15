@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b2545">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Barca">
+<title>Diario di bordo – Manutenzione barca</title>
+<link rel="apple-touch-icon" id="appleIcon">
+<link rel="icon" id="favIcon">
+<link rel="manifest" id="manifestLink">
+<style>
+/* =========================================================
+   COLORI E TEMA
+   Navy, bianco e sabbia. Il tema scuro si attiva in automatico
+   oppure si sceglie dalle Impostazioni (data-theme).
+   ========================================================= */
+:root{
+  --navy:#0b2545; --navy2:#13406e; --sabbia:#e6d3a3; --sabbia-chiara:#f7efdc;
+  --bg:#eef2f7; --card:#ffffff; --testo:#0a1a2f; --muted:#3f5068; --linea:#c9d3e0;
+  --ok:#14834a; --check:#c98a00; --ko:#c62828; --nv:#7d8a9c;
+  --accento:#13406e; --mare:#d5e6f3; --mare-linea:#b4cfe5; --scafo:#ffffff;
+  --coperta:#e9d6a8; --pozzetto:#d7c08a; --tratto:#0b2545; --viva:#8f2d2d;
+  --ombra:0 2px 0 rgba(11,37,69,.08);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#071222; --card:#0f2038; --testo:#f1f5fb; --muted:#b3c2d6; --linea:#284062;
+    --accento:#7fb3e6; --mare:#0c2a47; --mare-linea:#173d63; --scafo:#1b3557;
+    --coperta:#5a4c2f; --pozzetto:#6d5b36; --tratto:#cfe0f3; --viva:#7a2a2a;
+    --sabbia-chiara:#2a2416; --ok:#3ccf7d; --check:#f2b81f; --ko:#ff5a52; --nv:#9aa7b8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#071222; --card:#0f2038; --testo:#f1f5fb; --muted:#b3c2d6; --linea:#284062;
+  --accento:#7fb3e6; --mare:#0c2a47; --mare-linea:#173d63; --scafo:#1b3557;
+  --coperta:#5a4c2f; --pozzetto:#6d5b36; --tratto:#cfe0f3; --viva:#7a2a2a;
+  --sabbia-chiara:#2a2416; --ok:#3ccf7d; --check:#f2b81f; --ko:#ff5a52; --nv:#9aa7b8;
+  color-scheme: dark;
+}
+
+/* =========================================================
+   BASE: testi grandi (min 17px), pulsanti grandi (min 48px)
+   ========================================================= */
+*{box-sizing:border-box}
+:root{ padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--testo);
+  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size:18px; line-height:1.45;
+}
+h1,h2,h3{ font-family: Georgia, "Times New Roman", serif; font-weight:700; line-height:1.2; }
+h2{ font-size:22px; margin:28px 0 12px; }
+h3{ font-size:19px; margin:0 0 8px; }
+p{ margin:0 0 10px; }
+button, input, select, textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:3px solid var(--accento); outline-offset:2px; }
+.muted{ color:var(--muted); }
+.piccolo{ font-size:17px; }
+
+/* Contenitore principale */
+#app{ max-width:880px; margin:0 auto; padding:0 14px 120px; }
+
+/* Testata con nome barca e riepilogo */
+#top{ position:relative; z-index:5; background:var(--navy); color:#fff;
+  margin:0 -14px; padding:12px 16px 12px; }
+body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); background:var(--navy); z-index:10; }
+.top-riga{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.titolo-barca{ font-family:Georgia,serif; font-size:23px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chip-ore{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff;
+  border-radius:999px; padding:8px 14px; min-height:44px; font-size:17px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.riepilogo{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.riepilogo button{ border:0; border-radius:10px; padding:7px 11px; min-height:42px; font-size:17px; font-weight:700; cursor:pointer;
+  background:rgba(255,255,255,.12); color:#fff; display:flex; align-items:center; gap:6px; }
+.riepilogo .pallino{ width:14px; height:14px; border-radius:50%; display:inline-block; border:2px solid #fff; }
+
+/* Barra di navigazione in basso (5 voci) */
+#nav{ position:fixed; left:0; right:0; bottom:0; z-index:6; background:var(--card); border-top:2px solid var(--linea);
+  display:flex; justify-content:center; padding-bottom:env(safe-area-inset-bottom,0px); }
+#nav .inner{ display:flex; width:100%; max-width:880px; }
+#nav button{ flex:1; border:0; background:none; padding:8px 2px 8px; min-height:64px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:2px; font-size:15px; font-weight:600; color:var(--muted); position:relative; }
+#nav button .ic{ font-size:25px; line-height:1; }
+#nav button.on{ color:var(--accento); }
+#nav button.on::before{ content:""; position:absolute; top:-2px; left:20%; right:20%; height:4px; background:var(--accento); border-radius:0 0 4px 4px; }
+#nav .badge{ position:absolute; top:4px; right:calc(50% - 26px); background:var(--ko); color:#fff; border-radius:999px; font-size:13px; min-width:22px; height:22px; line-height:22px; padding:0 5px; }
+
+/* Pulsanti */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:52px; padding:10px 18px;
+  border-radius:12px; border:2px solid var(--linea); background:var(--card); color:var(--testo);
+  font-size:18px; font-weight:700; cursor:pointer; text-align:center; text-decoration:none; }
+.btn.primary{ background:var(--navy); border-color:var(--navy); color:#fff; }
+:root[data-theme="dark"] .btn.primary{ background:#2d6aa8; border-color:#2d6aa8; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .btn.primary{ background:#2d6aa8; border-color:#2d6aa8; } }
+.btn.ok{ background:var(--ok); border-color:var(--ok); color:#fff; }
+.btn.danger{ background:var(--ko); border-color:var(--ko); color:#fff; }
+.btn.danger-ghost{ border-color:var(--ko); color:var(--ko); }
+.btn.warn{ background:var(--check); border-color:var(--check); color:#1a1200; }
+.btn.blocco{ display:flex; width:100%; }
+.btn:active{ transform:translateY(1px); }
+.btn[disabled]{ opacity:.5; }
+.fila{ display:flex; gap:10px; flex-wrap:wrap; }
+.fila > .btn{ flex:1 1 150px; }
+
+/* Selettori a segmenti (es. Dall'alto / Di lato) */
+.seg{ display:flex; border:2px solid var(--navy2); border-radius:12px; overflow:hidden; }
+.seg button{ flex:1; border:0; background:var(--card); min-height:50px; font-size:18px; font-weight:700; cursor:pointer; padding:6px 10px; }
+.seg button + button{ border-left:2px solid var(--navy2); }
+.seg button.on{ background:var(--navy2); color:#fff; }
+
+/* Schede / blocchi */
+.card{ background:var(--card); border:1px solid var(--linea); border-radius:14px; padding:16px; margin:12px 0; box-shadow:var(--ombra); }
+.card.sabbia{ background:var(--sabbia-chiara); border-color:var(--sabbia); }
+.vuoto{ text-align:center; padding:26px 16px; color:var(--muted); }
+
+/* Filtri */
+.filtri{ display:flex; gap:8px; overflow-x:auto; padding:4px 0 8px; -webkit-overflow-scrolling:touch; }
+.chip{ flex:0 0 auto; border:2px solid var(--linea); background:var(--card); border-radius:999px; padding:6px 14px; min-height:46px;
+  font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.chip.on{ border-color:var(--navy2); background:var(--navy2); color:#fff; }
+select.campo, .chip-select{ min-height:50px; border:2px solid var(--linea); border-radius:12px; background:var(--card); padding:6px 12px; font-size:18px; }
+
+/* ===== Disegno della barca ===== */
+.disegno{ background:var(--mare); border-radius:18px; border:2px solid var(--mare-linea); padding:6px; margin:6px 0 10px; position:relative; }
+.disegno.lato{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.disegno svg{ display:block; margin:0 auto; width:100%; height:auto; user-select:none; -webkit-user-select:none; }
+.disegno.alto svg{ max-height:66vh; width:auto; max-width:100%; }
+.disegno.lato svg{ min-width:640px; }
+.didascalia{ text-align:center; font-size:17px; color:var(--muted); padding:2px 0 4px; }
+.sposta-attivo{ outline:4px dashed var(--check); outline-offset:-4px; }
+.avviso{ background:var(--sabbia-chiara); border:2px solid var(--sabbia); border-radius:12px; padding:12px 14px; margin:8px 0; font-weight:600; }
+
+/* Elementi dell'SVG */
+svg .mare-griglia{ stroke:var(--mare-linea); stroke-width:1.5; fill:none; }
+svg .scafo{ fill:var(--scafo); stroke:var(--tratto); stroke-width:4; stroke-linejoin:round; }
+svg .coperta{ fill:var(--coperta); }
+svg .tuga{ fill:var(--scafo); stroke:var(--tratto); stroke-width:3; }
+svg .pozzetto{ fill:var(--pozzetto); stroke:var(--tratto); stroke-width:2; }
+svg .osteriggio{ fill:var(--mare); stroke:var(--tratto); stroke-width:2; }
+svg .cavo{ stroke:var(--tratto); stroke-width:2; opacity:.55; }
+svg .boma{ stroke:var(--tratto); stroke-width:6; stroke-linecap:round; }
+svg .albero{ fill:var(--tratto); stroke:var(--tratto); }
+svg .albero-lato{ stroke:var(--tratto); stroke-width:7; stroke-linecap:round; }
+svg .scuro{ fill:var(--tratto); }
+svg .viva{ fill:var(--viva); }
+svg .linea-gall{ stroke:var(--tratto); stroke-width:3; }
+svg .etic{ fill:var(--tratto); font-size:17px; font-weight:700; font-family:Georgia,serif; opacity:.8; }
+svg .etic-b{ fill:#fff; font-size:15px; font-weight:700; opacity:.9; }
+
+/* Pin dei sistemi */
+.pin{ cursor:pointer; }
+.pin .pin-hit{ fill:transparent; }
+.pin .pin-bg{ fill:var(--card); stroke-width:6; }
+.pin .pin-ico{ font-size:23px; pointer-events:none; }
+.pin .pin-badge{ stroke:var(--card); stroke-width:2.5; }
+.pin .pin-sim{ fill:#fff; font-size:13px; font-weight:900; pointer-events:none; font-family:Arial,sans-serif; }
+.pin .pin-nome{ font-size:13px; font-weight:700; fill:var(--testo); stroke:var(--card); stroke-width:4; paint-order:stroke; pointer-events:none; }
+.pin.st-ok .pin-bg{ stroke:var(--ok); } .pin.st-ok .pin-badge{ fill:var(--ok); }
+.pin.st-check .pin-bg{ stroke:var(--check); } .pin.st-check .pin-badge{ fill:var(--check); }
+.pin.st-ko .pin-bg{ stroke:var(--ko); } .pin.st-ko .pin-badge{ fill:var(--ko); }
+.pin.st-nv .pin-bg{ stroke:var(--nv); stroke-dasharray:6 4; } .pin.st-nv .pin-badge{ fill:var(--nv); }
+.pin.spento{ opacity:.15; }
+.sposta-attivo .pin{ touch-action:none; cursor:grab; }
+.pin.trascina{ cursor:grabbing; }
+.pin.trascina .pin-bg{ stroke-width:9; }
+@keyframes pulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.45 } }
+.pin.st-ko .pin-badge{ animation:pulsa 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){ .pin.st-ko .pin-badge{ animation:none; } .sheet{ transition:none!important; } }
+
+/* Righe dell'elenco sistemi */
+.riga{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--card); border:1px solid var(--linea);
+  border-left:8px solid var(--nv); border-radius:12px; padding:12px 14px; margin:8px 0; min-height:64px; cursor:pointer; font-size:18px; }
+.riga .ico{ font-size:28px; width:36px; text-align:center; flex:0 0 auto; }
+.riga .corpo{ flex:1; min-width:0; }
+.riga .nome{ font-weight:700; }
+.riga .sotto{ font-size:17px; color:var(--muted); }
+.riga .freccia{ font-size:26px; color:var(--muted); }
+.riga.st-ok{ border-left-color:var(--ok); } .riga.st-check{ border-left-color:var(--check); }
+.riga.st-ko{ border-left-color:var(--ko); } .riga.st-nv{ border-left-color:var(--nv); }
+.riga.pri-alta{ border-left-color:var(--ko); } .riga.pri-media{ border-left-color:var(--check); } .riga.pri-bassa{ border-left-color:var(--nv); }
+.stato-txt{ font-weight:700; }
+.stato-txt.st-ok{ color:var(--ok); } .stato-txt.st-check{ color:var(--check); } .stato-txt.st-ko{ color:var(--ko); } .stato-txt.st-nv{ color:var(--muted); }
+
+/* ===== Pannelli a scorrimento (scheda, moduli) ===== */
+.sheet{ position:fixed; inset:0; z-index:20; background:var(--bg); display:flex; flex-direction:column;
+  transform:translateY(100%); transition:transform .22s ease-out; padding-top:env(safe-area-inset-top,0px); }
+.sheet.aperto{ transform:none; }
+.sheet-testa{ display:flex; align-items:center; gap:8px; background:var(--navy); color:#fff; padding:8px 10px; min-height:64px; }
+.sheet-testa h2{ margin:0; font-size:21px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.btn-indietro{ border:0; background:rgba(255,255,255,.14); color:#fff; border-radius:10px; min-height:48px; padding:6px 14px; font-size:18px; font-weight:700; cursor:pointer; }
+.sheet-corpo{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 14px calc(40px + env(safe-area-inset-bottom,0px)); }
+.sheet-corpo > .stretto{ max-width:760px; margin:0 auto; }
+
+/* Riquadro stato nella scheda */
+.stato-box{ border-radius:14px; padding:14px 16px; color:#fff; margin:6px 0 12px; }
+.stato-box .grande{ font-size:24px; font-weight:800; font-family:Georgia,serif; }
+.stato-box.st-ok{ background:var(--ok); } .stato-box.st-check{ background:var(--check); color:#1a1200; }
+.stato-box.st-ko{ background:var(--ko); } .stato-box.st-nv{ background:var(--nv); }
+.griglia-stati{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+.griglia-stati button{ min-height:56px; border-radius:12px; border:3px solid var(--linea); background:var(--card); font-size:17px; font-weight:700; cursor:pointer; }
+.griglia-stati button.on.st-ok{ border-color:var(--ok); background:color-mix(in srgb, var(--ok) 18%, var(--card)); }
+.griglia-stati button.on.st-check{ border-color:var(--check); background:color-mix(in srgb, var(--check) 22%, var(--card)); }
+.griglia-stati button.on.st-ko{ border-color:var(--ko); background:color-mix(in srgb, var(--ko) 18%, var(--card)); }
+.griglia-stati button.on.st-nv{ border-color:var(--nv); background:color-mix(in srgb, var(--nv) 22%, var(--card)); }
+
+/* Dati in elenco */
+dl.dati{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; }
+dl.dati dt{ color:var(--muted); }
+dl.dati dd{ margin:0; font-weight:600; word-break:break-word; }
+
+/* Moduli */
+label.et{ display:block; font-weight:700; margin:16px 0 6px; }
+.campo{ width:100%; min-height:52px; border:2px solid var(--linea); border-radius:12px; background:var(--card); padding:10px 12px; font-size:18px; }
+textarea.campo{ min-height:96px; resize:vertical; }
+.campo:focus{ border-color:var(--accento); outline:none; }
+.due{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.due label.et{ margin-top:12px; }
+.check-riga{ display:flex; align-items:center; gap:12px; min-height:52px; font-weight:600; margin:12px 0; cursor:pointer; }
+.check-riga input{ width:28px; height:28px; accent-color:var(--navy2); flex:0 0 auto; }
+.scelta{ display:flex; gap:8px; flex-wrap:wrap; }
+.scelta button{ flex:1 1 120px; min-height:52px; border-radius:12px; border:3px solid var(--linea); background:var(--card); font-size:17px; font-weight:700; cursor:pointer; padding:6px 8px; }
+.scelta button.on{ border-color:var(--navy2); background:color-mix(in srgb, var(--navy2) 15%, var(--card)); }
+.griglia-icone{ display:grid; grid-template-columns:repeat(auto-fill,minmax(52px,1fr)); gap:6px; }
+.griglia-icone button{ min-height:52px; font-size:26px; border-radius:10px; border:2px solid var(--linea); background:var(--card); cursor:pointer; }
+.griglia-icone button.on{ border:3px solid var(--navy2); }
+.barra-salva{ position:sticky; bottom:-40px; background:linear-gradient(transparent, var(--bg) 30%); padding:18px 0 20px; margin-top:16px; }
+
+/* Catalogo */
+.cat-titolo{ display:flex; align-items:center; gap:8px; font-family:Georgia,serif; font-size:20px; font-weight:700; margin:22px 0 8px; }
+.cat-griglia{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+.cat-voce{ display:flex; align-items:center; gap:10px; text-align:left; min-height:60px; padding:8px 12px; border-radius:12px; border:2px solid var(--linea); background:var(--card); cursor:pointer; font-size:17px; font-weight:600; }
+.cat-voce .ico{ font-size:26px; }
+.cat-voce .gia{ display:block; font-size:15px; color:var(--ok); font-weight:700; }
+
+/* Foto */
+.foto-griglia{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:8px; margin:8px 0; }
+.foto-griglia button{ padding:0; border:2px solid var(--linea); border-radius:10px; overflow:hidden; aspect-ratio:1; background:var(--linea); cursor:pointer; }
+.foto-griglia img{ width:100%; height:100%; object-fit:cover; display:block; }
+.visore{ position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.92); display:flex; flex-direction:column; padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(10px + env(safe-area-inset-bottom,0px)); }
+.visore img{ flex:1; min-height:0; object-fit:contain; width:100%; }
+.visore .fila{ margin-top:10px; }
+
+/* Interventi nel registro */
+.intervento{ display:block; width:100%; text-align:left; background:var(--card); border:1px solid var(--linea); border-radius:12px; padding:12px 14px; margin:8px 0; cursor:pointer; font-size:18px; }
+.intervento .testa{ display:flex; justify-content:space-between; gap:10px; font-weight:700; }
+.tipo{ display:inline-block; font-size:15px; font-weight:800; padding:2px 9px; border-radius:6px; margin:4px 0; background:var(--sabbia-chiara); border:1px solid var(--sabbia); }
+.tipo.t-Guasto{ background:var(--ko); color:#fff; border-color:var(--ko); }
+.tipo.t-Riparazione{ background:color-mix(in srgb, var(--check) 30%, var(--card)); border-color:var(--check); }
+.tabella{ width:100%; border-collapse:collapse; font-size:18px; }
+.tabella td,.tabella th{ padding:8px 6px; border-bottom:1px solid var(--linea); text-align:left; }
+.tabella td.num,.tabella th.num{ text-align:right; }
+
+/* Ore motore */
+.ore-grande{ font-family:Georgia,serif; font-size:56px; font-weight:800; line-height:1.1; }
+.campo-ore{ font-size:34px; font-weight:800; text-align:center; min-height:72px; }
+
+/* Finestre di conferma e avvisi */
+.dlg-sfondo{ position:fixed; inset:0; z-index:50; background:rgba(4,12,24,.6); display:flex; align-items:center; justify-content:center; padding:18px; }
+.dlg{ background:var(--card); border-radius:16px; padding:20px; max-width:440px; width:100%; font-size:19px; }
+.dlg p{ margin-bottom:16px; }
+.dlg .bottoni{ display:flex; flex-direction:column; gap:10px; }
+.toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + env(safe-area-inset-bottom,0px)); z-index:60; background:var(--navy); color:#fff;
+  padding:14px 20px; border-radius:12px; font-size:18px; font-weight:600; max-width:92vw; box-shadow:0 6px 20px rgba(0,0,0,.3); text-align:center; }
+
+/* Benvenuto */
+.benvenuto{ max-width:520px; margin:0 auto; padding:30px 4px 60px; }
+.benvenuto .logo{ font-size:64px; text-align:center; }
+.benvenuto h1{ font-size:36px; text-align:center; margin:4px 0 6px; }
+.benvenuto .sotto{ text-align:center; color:var(--muted); margin-bottom:18px; }
+
+/* =========================================================
+   VERSIONE PC / TABLET ORIZZONTALE (schermi da 1000px in su)
+   Menu laterale, disegno e elenco affiancati, pannelli a destra.
+   ========================================================= */
+.nav-marchio{ display:none; }
+#velo{ display:none; }
+.colonna-stretta{ max-width:640px; }
+@media (hover:hover){
+  .riga:hover, .intervento:hover, .cat-voce:hover{ border-color:var(--accento); }
+  .btn:hover{ filter:brightness(1.06); }
+  .chip:hover:not(.on), .seg button:hover:not(.on){ background:color-mix(in srgb, var(--accento) 10%, var(--card)); }
+}
+@media (min-width:1000px){
+  body{ padding-left:230px; }
+  #app{ max-width:1400px; padding:0 32px 48px; }
+  #top{ margin:0 -32px; padding:16px 32px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+  #top .top-riga{ flex:0 0 auto; gap:18px; }
+  #top .riepilogo{ margin-top:0; flex:1; justify-content:flex-end; }
+  #nav{ top:0; bottom:0; right:auto; width:230px; border-top:0; border-right:2px solid var(--linea); padding:0; }
+  #nav .inner{ flex-direction:column; padding-top:env(safe-area-inset-top,0px); }
+  .nav-marchio{ display:block; background:var(--navy); color:#fff; font-family:Georgia,serif; font-size:21px; font-weight:700; padding:22px 20px; }
+  #nav button{ flex:0 0 auto; flex-direction:row; justify-content:flex-start; gap:14px; padding:12px 20px; min-height:60px; font-size:19px; }
+  #nav button .ic{ width:30px; text-align:center; }
+  #nav button.on{ background:color-mix(in srgb, var(--accento) 10%, var(--card)); }
+  #nav button.on::before{ top:8px; bottom:8px; left:0; right:auto; width:5px; height:auto; border-radius:0 4px 4px 0; }
+  #nav .badge{ position:static; margin-left:auto; }
+
+  /* Barca: disegno a sinistra (fisso mentre si scorre), elenco a destra */
+  .layout-barca{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(380px,1fr); gap:32px; align-items:start; }
+  .layout-barca .col-disegno{ position:sticky; top:16px; }
+  .layout-barca .col-lista > h2:first-child{ margin-top:16px; }
+  .disegno.alto svg{ max-height:calc(100vh - 290px); }
+  .disegno.lato{ overflow:visible; }
+  .disegno.lato svg{ min-width:0; }
+
+  /* Da fare e Registro su due colonne */
+  .due-col{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:32px; align-items:start; }
+  .due-col.reg{ grid-template-columns:360px minmax(0,1fr); }
+  .due-col.reg > :first-child{ position:sticky; top:16px; }
+  .griglia-imp{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 32px; align-items:start; }
+
+  /* Pannelli: si aprono da destra, la barca resta visibile a sinistra */
+  .sheet{ left:auto; width:min(640px,92vw); transform:translateX(100%); box-shadow:-12px 0 40px rgba(0,0,0,.28); }
+  .sheet.aperto{ transform:none; }
+  #velo{ display:block; position:fixed; inset:0; z-index:19; background:rgba(4,12,24,.35); opacity:0; pointer-events:none; transition:opacity .2s; }
+  #velo.on{ opacity:1; pointer-events:auto; cursor:pointer; }
+  .toast{ bottom:30px; left:calc(50% + 115px); }
+  .cat-griglia{ grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); }
+}
+@media (min-width:1000px) and (prefers-reduced-motion: reduce){ #velo{ transition:none; } }
+
+/* ===== Stampa del registro ===== */
+#stampa{ display:none; }
+@media print{
+  body{ background:#fff; color:#000; font-size:12pt; }
+  body::before{ display:none; }
+  #app, #nav, #velo, .sheet, .toast, .dlg-sfondo, .visore{ display:none !important; }
+  #stampa{ display:block; }
+  #stampa h1{ font-size:20pt; margin:0 0 4pt; }
+  #stampa h2{ font-size:14pt; margin:14pt 0 6pt; }
+  #stampa table{ width:100%; border-collapse:collapse; font-size:10pt; }
+  #stampa th, #stampa td{ border:1px solid #999; padding:4pt 5pt; vertical-align:top; text-align:left; }
+  #stampa .num{ text-align:right; }
+  #stampa tr{ page-break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header id="top" hidden></header>
+  <main id="main"></main>
+</div>
+<nav id="nav" hidden></nav>
+<div id="velo" aria-hidden="true"></div>
+<div id="stampa"></div>
+
+<!-- Selettori di file nascosti (foto e backup) -->
+<input type="file" id="fileFoto" accept="image/*" multiple hidden>
+<input type="file" id="fileBackup" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+/* =========================================================
+   DIARIO DI BORDO – MANUTENZIONE BARCA
+   App in un solo file, funziona offline. I dati restano sul
+   dispositivo (IndexedDB). Nessun account, nessun server.
+   ========================================================= */
+
+/* ---------- Utilità generali ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const clona = o => JSON.parse(JSON.stringify(o));
+function isoData(d){ const z = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
+const oggi = () => isoData(new Date());
+function leggiData(s){ const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function aggiungiMesi(s, n){
+  const d = leggiData(s), g = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth() + Number(n));
+  const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(g, ultimo)); return isoData(d);
+}
+const giorniTra = (a, b) => Math.round((leggiData(a) - leggiData(b)) / 86400000);
+const giorniFa = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoData(d); };
+function fmtData(s){ if (!s) return "—"; try { return leggiData(s).toLocaleDateString("it-IT", { day:"numeric", month:"short", year:"numeric" }); } catch(e){ return s; } }
+const fmtEuro = n => (Number(n) || 0).toLocaleString("it-IT", { style:"currency", currency:"EUR" });
+const fmtOre = n => (Number(n) || 0).toLocaleString("it-IT", { maximumFractionDigits:1 });
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const slug = s => norm(s || "barca").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "barca";
+const numOVuoto = v => (v === "" || v == null || isNaN(Number(v))) ? "" : Number(v);
+
+/* ---------- Stati dei sistemi ---------- */
+const STATI = {
+  ok:    { nome:"Funzionante",     breve:"OK",              sim:"✓", em:"🟢" },
+  check: { nome:"Da controllare",  breve:"Da controllare",  sim:"!", em:"🟡" },
+  ko:    { nome:"Guasto",          breve:"Guasti",          sim:"✕", em:"🔴" },
+  nv:    { nome:"Non verificato",  breve:"Non verificati",  sim:"?", em:"⚪" }
+};
+const TIPI = ["Manutenzione ordinaria", "Riparazione", "Sostituzione", "Controllo", "Guasto segnalato"];
+const PRIORITA = { alta:"🔴 Alta", media:"🟡 Media", bassa:"⚪ Bassa" };
+
+/* ---------- Categorie e catalogo dei sistemi ----------
+   Ogni voce: [id, nome, icona, ogni_mesi, ogni_ore, posizioni_specifiche]
+   Le posizioni sono coordinate nel disegno: vista "alto" 400×910, vista "lato" 900×460. */
+const CATEGORIE = {
+  propulsione:   { nome:"Propulsione",            icona:"⚙️", alto:[200,700], lato:[360,250] },
+  elettrico:     { nome:"Elettrico",              icona:"⚡", alto:[140,580], lato:[420,240] },
+  idraulico:     { nome:"Idraulico",              icona:"💧", alto:[260,520], lato:[480,245] },
+  scarichi:      { nome:"Scarichi e prese a mare", icona:"🚽", alto:[145,400], lato:[600,250] },
+  gas:           { nome:"Gas",                    icona:"🔥", alto:[265,610], lato:[440,215] },
+  governo:       { nome:"Governo",                icona:"☸️", alto:[200,800], lato:[130,240] },
+  coperta:       { nome:"Coperta",                icona:"⚓", alto:[200,150], lato:[780,175] },
+  strumentazione:{ nome:"Strumentazione",         icona:"📡", alto:[200,740], lato:[240,180] },
+  vela:          { nome:"Vela",                   icona:"⛵", alto:[200,330], lato:[500,70], soloVela:true },
+  sicurezza:     { nome:"Sicurezza",              icona:"🛟", alto:[125,790], lato:[180,200] },
+  scafo:         { nome:"Scafo",                  icona:"🚤", alto:[305,450], lato:[540,295] },
+  altro:         { nome:"Personalizzati",         icona:"🔧", alto:[200,470], lato:[560,215] }
+};
+const CATALOGO = {
+  propulsione: [
+    ["motore","Motore entrobordo","⚙️",12,200],
+    ["fuoribordo","Motore fuoribordo","🛥️",12,100,{alto:[200,880],lato:[60,250]}],
+    ["piede","Piede / invertitore","🔩",12,200],
+    ["elica","Asse ed elica","🌀",12,0,{alto:[200,855],lato:[240,320]}],
+    ["filtri_gasolio","Filtri gasolio","🛢️",12,200],
+    ["girante","Girante pompa acqua mare","💦",24,300],
+    ["scambiatore","Scambiatore di calore","♨️",24,0],
+    ["cinghie","Cinghie","➰",24,300]
+  ],
+  elettrico: [
+    ["batt_servizi","Batterie servizi","🔋",12,0],
+    ["batt_motore","Batteria motore","🔋",12,0],
+    ["caricabatterie","Caricabatterie","🔌",0,0],
+    ["quadro","Quadro elettrico","🎛️",12,0],
+    ["alternatore","Alternatore","⚡",0,500,{alto:[230,720],lato:[380,265]}],
+    ["pannelli","Pannelli solari","☀️",12,0,{alto:[200,820],lato:[150,140]}],
+    ["inverter","Inverter","🔁",0,0],
+    ["banchina","Presa banchina","🔌",12,0,{alto:[310,840],lato:[90,200]}]
+  ],
+  idraulico: [
+    ["acqua","Serbatoio acqua dolce","🚰",12,0],
+    ["autoclave","Autoclave","💧",0,0],
+    ["boiler","Boiler","🌡️",12,0],
+    ["doccetta","Doccetta di poppa","🚿",0,0,{alto:[270,860],lato:[70,215]}],
+    ["sentina_man","Pompa di sentina manuale","👐",6,0],
+    ["sentina_el","Pompa di sentina elettrica","💧",6,0,{alto:[200,600],lato:[470,290]}]
+  ],
+  scarichi: [
+    ["valvole","Valvole / passascafo","🔧",12,0,{lato:[560,285]}],
+    ["wc","WC marino","🚽",12,0],
+    ["nere","Serbatoio acque nere","🛢️",12,0]
+  ],
+  gas: [
+    ["bombola","Bombola gas","🛢️",12,0,{alto:[290,700],lato:[200,215]}],
+    ["riduttore","Riduttore di pressione","⏲️",60,0],
+    ["tubi_gas","Tubi del gas","〰️",60,0],
+    ["cucina","Cucina / forno","🍳",12,0],
+    ["elettrovalvola","Elettrovalvola gas","🔐",12,0]
+  ],
+  governo: [
+    ["timone","Timone","☸️",12,0,{alto:[200,790],lato:[160,330]}],
+    ["frenelli","Timoneria / frenelli","⛓️",12,0],
+    ["autopilota","Autopilota","🤖",12,0]
+  ],
+  coperta: [
+    ["salpancora","Salpancora / verricello","⚓",12,0,{alto:[200,100],lato:[820,170]}],
+    ["ancora","Ancora e catena","⛓️",12,0,{alto:[200,130],lato:[840,215]}],
+    ["bitte","Bitte","🔩",0,0],
+    ["winch","Winch","🔄",12,0,{alto:[130,650],lato:[260,175]}],
+    ["tientibene","Tientibene / battagliola","✋",12,0],
+    ["bimini","Tendalino / bimini","⛱️",12,0,{alto:[200,760],lato:[220,120]}]
+  ],
+  strumentazione: [
+    ["gps","GPS / chartplotter","🗺️",0,0],
+    ["ecoscandaglio","Ecoscandaglio","📶",0,0,{lato:[640,290]}],
+    ["vhf","VHF","📻",24,0],
+    ["ais","AIS","📡",0,0],
+    ["log","Log (velocità)","⏱️",0,0],
+    ["anemometro","Anemometro","🌬️",0,0,{alto:[200,345],lato:[500,25]}],
+    ["bussola","Bussola","🧭",0,0]
+  ],
+  vela: [
+    ["albero","Albero","📏",12,0,{alto:[200,330],lato:[500,120]}],
+    ["boma","Boma","➖",12,0,{alto:[200,520],lato:[330,135]}],
+    ["sartiame","Sartiame","🕸️",60,0,{alto:[250,350],lato:[660,90]}],
+    ["drizze","Drizze","🎗️",24,0],
+    ["scotte","Scotte","〰️",24,0],
+    ["vele","Vele","⛵",12,0],
+    ["avvolgifiocco","Avvolgifiocco","🌀",12,0,{alto:[200,65],lato:[840,160]}]
+  ],
+  sicurezza: [
+    ["zattera","Zattera autogonfiabile","🛟",36,0],
+    ["giubbotti","Giubbotti salvagente","🦺",12,0],
+    ["razzi","Razzi e fuochi","🎆",36,0],
+    ["estintori","Estintori","🧯",12,0],
+    ["epirb","EPIRB","📍",24,0],
+    ["pronto_soccorso","Cassetta pronto soccorso","⛑️",12,0]
+  ],
+  scafo: [
+    ["carena","Carena / antivegetativa","🎨",12,0,{alto:[300,470],lato:[600,300]}],
+    ["anodi","Anodi / zinchi","🔘",12,0,{alto:[270,790],lato:[260,305]}],
+    ["opera_morta","Opera morta","🚤",24,0,{lato:[650,220]}],
+    ["teak","Teak","🌳",24,0,{alto:[110,500]}],
+    ["osteriggi","Osteriggi / oblò","🔲",24,0,{alto:[200,280],lato:[480,165]}]
+  ]
+};
+const ICONE_LIBERE = ["🔧","⚙️","⚡","🔋","💧","🚿","🔥","⚓","🧭","📡","📻","🛟","🧯","🎛️","🔌","🛢️","🌀","☀️","🪝","🔦","🧰","📦","🚪","🛏️","🍳","❄️","🌡️","🔒","📷","🎣","🚲","🛶"];
+
+/* ---------- Database (IndexedDB) ---------- */
+const DB = {
+  db: null,
+  apri(){
+    return new Promise((ok, ko) => {
+      if (!("indexedDB" in window)) return ko(new Error("IndexedDB non disponibile"));
+      const r = indexedDB.open("diarioBordoBarca", 1);
+      r.onupgradeneeded = () => { const d = r.result; d.createObjectStore("dati"); d.createObjectStore("foto"); };
+      r.onsuccess = () => { this.db = r.result; ok(); };
+      r.onerror = () => ko(r.error);
+    });
+  },
+  leggi(store, chiave){
+    return new Promise((ok, ko) => {
+      if (!this.db) return ok(undefined);
+      const r = this.db.transaction(store).objectStore(store).get(chiave);
+      r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error);
+    });
+  },
+  scrivi(store, chiave, valore){ return this.molti(store, [[chiave, valore]]); },
+  molti(store, coppie){
+    return new Promise((ok, ko) => {
+      if (!this.db) return ok();
+      const t = this.db.transaction(store, "readwrite"), s = t.objectStore(store);
+      coppie.forEach(([k, v]) => s.put(v, k));
+      t.oncomplete = () => ok(); t.onerror = () => ko(t.error); t.onabort = () => ko(t.error || new Error("Scrittura interrotta"));
+    });
+  },
+  elimina(store, chiavi){
+    return new Promise((ok, ko) => {
+      if (!this.db || !chiavi.length) return ok();
+      const t = this.db.transaction(store, "readwrite"), s = t.objectStore(store);
+      chiavi.forEach(k => s.delete(k));
+      t.oncomplete = () => ok(); t.onerror = () => ko(t.error);
+    });
+  },
+  svuota(store){
+    return new Promise((ok, ko) => {
+      if (!this.db) return ok();
+      const t = this.db.transaction(store, "readwrite"); t.objectStore(store).clear();
+      t.oncomplete = () => ok(); t.onerror = () => ko(t.error);
+    });
+  },
+  tutte(store){
+    return new Promise((ok, ko) => {
+      if (!this.db) return ok({});
+      const out = {}, r = this.db.transaction(store).objectStore(store).openCursor();
+      r.onsuccess = () => { const c = r.result; if (c){ out[c.key] = c.value; c.continue(); } else ok(out); };
+      r.onerror = () => ko(r.error);
+    });
+  }
+};
+
+/* ---------- Stato dell'app ---------- */
+let S = null;                    // tutti i dati (barca, sistemi, interventi, daFare)
+let vista = "barca";             // schermata attiva
+let vistaDisegno = "alto";       // "alto" o "lato"
+let modoSposta = false;          // trascinamento dei pin attivo
+let filtroStato = "tutti", filtroCat = "tutte";
+let filtriReg = { sistema:"", anno:"", tipo:"" };
+const fotoCache = new Map();     // foto già caricate in memoria
+const sheets = [];               // pannelli aperti (pila)
+let timerSalva = null;
+
+/* Salvataggio automatico (con piccolo ritardo per raggruppare le modifiche) */
+function salva(){
+  clearTimeout(timerSalva);
+  timerSalva = setTimeout(async () => {
+    try { await DB.scrivi("dati", "stato", S); }
+    catch(e){ erroreMemoria(e); }
+  }, 250);
+}
+function erroreMemoria(e){
+  const pieno = e && (e.name === "QuotaExceededError" || /quota|space|spazio/i.test(e.message || ""));
+  avviso(pieno
+    ? "⚠️ <b>Memoria del telefono piena.</b><br>L'ultima modifica potrebbe non essere stata salvata. Fai un backup da Impostazioni, poi elimina qualche foto non necessaria."
+    : "⚠️ Salvataggio non riuscito: " + esc(e && e.message || "errore sconosciuto") + ".<br>Prova a ricaricare l'app.");
+}
+
+/* Garantisce che i dati abbiano tutti i campi (anche da backup vecchi) */
+function normalizza(d){
+  d.barca = Object.assign({ nome:"", tipo:"vela", lunghezza:10, modello:"", porto:"", oreMotore:0, storicoOre:[], ultimoBackup:"" }, d.barca || {});
+  d.sistemi = d.sistemi || []; d.interventi = d.interventi || []; d.daFare = d.daFare || [];
+  d.ui = Object.assign({ nomi:true, tema:"auto" }, d.ui || {});
+  d.sistemi.forEach(s => {
+    s.foto = s.foto || [];
+    s.manutenzione = Object.assign({ mesi:"", ore:"", ultimaData:"", ultimeOre:"" }, s.manutenzione || {});
+    if (!s.pos) s.pos = posizioniIniziali(s.categoria, null, d);
+  });
+  d.interventi.forEach(i => { i.fotoPrima = i.fotoPrima || []; i.fotoDopo = i.fotoDopo || []; });
+  return d;
+}
+
+/* ---------- Calcoli: scadenze e stato effettivo ---------- */
+const trova = id => S.sistemi.find(s => s.id === id);
+function scadenza(s){
+  const m = s.manutenzione; if (!m) return null;
+  const mesi = Number(m.mesi) || 0, ore = Number(m.ore) || 0;
+  if (!mesi && !ore) return null;
+  const r = { giorni:null, data:null, ore:null, oreMancanti:null, manca:false };
+  if (mesi){ if (m.ultimaData){ r.data = aggiungiMesi(m.ultimaData, mesi); r.giorni = giorniTra(r.data, oggi()); } else r.manca = true; }
+  if (ore){ if (m.ultimeOre !== "" && m.ultimeOre != null){ r.ore = Number(m.ultimeOre) + ore; r.oreMancanti = r.ore - (Number(S.barca.oreMotore) || 0); } else r.manca = true; }
+  r.imminente = (r.giorni != null && r.giorni <= 30) || (r.oreMancanti != null && r.oreMancanti <= 20);
+  r.scaduta = (r.giorni != null && r.giorni < 0) || (r.oreMancanti != null && r.oreMancanti < 0);
+  r.urgenza = Math.min(r.giorni ?? 1e9, r.oreMancanti ?? 1e9);
+  if (r.giorni == null && r.oreMancanti == null) return r.manca ? r : null;
+  return r;
+}
+function effStato(s){
+  if (s.stato === "ko") return "ko";
+  const sc = scadenza(s);
+  if (sc && sc.imminente) return "check";
+  return s.stato || "nv";
+}
+function testoScadenza(sc){
+  if (!sc) return "";
+  const p = [];
+  if (sc.giorni != null){
+    if (sc.giorni < 0) p.push(`scaduta da ${-sc.giorni} giorni`);
+    else if (sc.giorni === 0) p.push("scade oggi");
+    else if (sc.giorni <= 45) p.push(`tra ${sc.giorni} giorni`);
+    else p.push(`il ${fmtData(sc.data)}`);
+  }
+  if (sc.oreMancanti != null){
+    if (sc.oreMancanti < 0) p.push(`superata di ${fmtOre(-sc.oreMancanti)} ore`);
+    else p.push(`tra ${fmtOre(sc.oreMancanti)} ore motore`);
+  }
+  if (!p.length && sc.manca) return "inserisci la data dell'ultimo intervento";
+  return p.join(" oppure ");
+}
+function riepilogo(){
+  const r = { ok:0, check:0, ko:0, nv:0, scad:0 };
+  S.sistemi.forEach(s => { r[effStato(s)]++; const sc = scadenza(s); if (sc && sc.imminente) r.scad++; });
+  return r;
+}
+function passaFiltro(s){
+  if (filtroStato !== "tutti" && effStato(s) !== filtroStato) return false;
+  if (filtroCat !== "tutte" && s.categoria !== filtroCat) return false;
+  return true;
+}
+const ordineStato = { ko:0, check:1, nv:2, ok:3 };
+
+/* ---------- Creazione sistemi ---------- */
+function vocecatalogo(cat, id){ return (CATALOGO[cat] || []).find(v => v[0] === id); }
+function posizioniIniziali(cat, voce, dati){
+  const c = CATEGORIE[cat] || CATEGORIE.altro, sp = (voce && voce[5]) || {};
+  const quanti = ((dati || S) ? (dati || S).sistemi.filter(s => s.categoria === cat).length : 0);
+  const dx = ((quanti % 5) - 2) * 34 * (quanti ? 1 : 0), dy = Math.floor(quanti / 5) * 44;
+  const a = sp.alto || c.alto, l = sp.lato || c.lato;
+  const lim = (v, mi, ma) => Math.max(mi, Math.min(ma, v));
+  return { alto:{ x:lim(a[0] + (sp.alto ? 0 : dx), 30, 370), y:lim(a[1] + (sp.alto ? 0 : dy), 30, 880) },
+           lato:{ x:lim(l[0] + (sp.lato ? 0 : dx * 1.4), 30, 870), y:lim(l[1] + (sp.lato ? 0 : dy * .6), 20, 440) } };
+}
+function nuovoSistema(cat, voce, extra = {}){
+  return Object.assign({
+    id:uid(), catalogoId: voce ? voce[0] : "", nome: voce ? voce[1] : "Nuovo sistema", categoria:cat, icona: voce ? voce[2] : "🔧",
+    marca:"", modello:"", matricola:"", anno:"", dataInstallazione:"", posizioneTesto:"", note:"",
+    stato:"nv", ultimaVerifica:"", foto:[],
+    manutenzione:{ mesi: voce && voce[3] ? voce[3] : "", ore: voce && voce[4] ? voce[4] : "", ultimaData:"", ultimeOre:"" },
+    pos: posizioniIniziali(cat, voce), creato:oggi()
+  }, extra);
+}
+
+/* ---------- Dati di esempio ---------- */
+function datiEsempio(){
+  const vela = S.barca.tipo === "vela";
+  S.barca.oreMotore = 1245; S.barca.oreDaEsempio = true;
+  S.barca.storicoOre = [{ data:giorniFa(60), ore:1210, esempio:true }, { data:giorniFa(10), ore:1245, esempio:true }];
+  const mk = (cat, cid, alto, lato, extra) => {
+    const s = nuovoSistema(cat, vocecatalogo(cat, cid));
+    s.pos = { alto:{ x:alto[0], y:alto[1] }, lato:{ x:lato[0], y:lato[1] } };
+    const man = extra.manutenzione; delete extra.manutenzione;
+    Object.assign(s, extra, { esempio:true });
+    if (man) Object.assign(s.manutenzione, man);
+    S.sistemi.push(s); return s;
+  };
+  const mot = mk("propulsione","motore",[200,700],[380,240],{ marca:"Volvo Penta", modello:"D2-40", anno:2012, stato:"ok", ultimaVerifica:giorniFa(20), posizioneTesto:"Sotto la scaletta di discesa", manutenzione:{ ultimaData:giorniFa(300), ultimeOre:1060 } });
+  const gir = mk("propulsione","girante",[245,690],[300,265],{ marca:"Johnson", stato:"ok", ultimaVerifica:giorniFa(20), manutenzione:{ ultimaData:giorniFa(710), ultimeOre:870, ore:"" } });
+  const bat = mk("elettrico","batt_servizi",[140,560],[460,235],{ marca:"Victron", modello:"AGM 2×110 Ah", stato:"ok", ultimaVerifica:giorniFa(10), posizioneTesto:"Sotto la cuccetta di poppa", manutenzione:{ ultimaData:giorniFa(120) } });
+  const sen = mk("idraulico","sentina_el",[200,600],[525,290],{ marca:"Rule", modello:"1100 GPH", stato:"ko", ultimaVerifica:giorniFa(3), manutenzione:{ ultimaData:giorniFa(100) } });
+  const wc  = mk("scarichi","wc",[150,410],[650,235],{ marca:"Jabsco", stato:"check", ultimaVerifica:giorniFa(40), posizioneTesto:"Bagno di prua", manutenzione:{ ultimaData:giorniFa(200) } });
+  mk("strumentazione","vhf",[255,560],[565,200],{ marca:"Standard Horizon", stato:"ok", ultimaVerifica:giorniFa(15) });
+  mk("coperta","salpancora",[200,100],[815,170],{ marca:"Lewmar", stato:"ok", ultimaVerifica:giorniFa(15), manutenzione:{ ultimaData:giorniFa(90) } });
+  const est = mk("sicurezza","estintori",[160,650],[225,215],{ stato:"ok", ultimaVerifica:giorniFa(150), manutenzione:{ mesi:12, ultimaData:giorniFa(150) } });
+  const ano = mk("scafo","anodi",[280,790],[400,335],{ stato:"nv" });
+  const car = mk("scafo","carena",[300,470],[730,290],{ stato:"ok", ultimaVerifica:giorniFa(240), manutenzione:{ ultimaData:giorniFa(240) } });
+  if (vela) mk("vela","sartiame",[250,350],[660,90],{ stato:"ok", ultimaVerifica:giorniFa(60), manutenzione:{ ultimaData:giorniFa(900) } });
+  else mk("governo","autopilota",[200,450],[300,160],{ marca:"Raymarine", stato:"ok", ultimaVerifica:giorniFa(30) });
+
+  const iv = (s, gg, tipo, descr, chi, officina, costo, ricambi, ore, st) =>
+    S.interventi.push({ id:uid(), sistemaId:s.id, data:giorniFa(gg), tipo, descrizione:descr, chi, officina, costo, ricambi, oreMotore:ore, fotoPrima:[], fotoDopo:[], statoDopo:st, esempio:true });
+  iv(mot, 300, "Manutenzione ordinaria", "Tagliando completo: olio, filtro olio, filtro gasolio, controllo cinghie.", "off", "Officina Nautica Rossi", 380, "Filtro olio – cod. 3840525\nFiltro gasolio – cod. 3838852\nOlio 15W-40 – 5 litri", 1060, "ok");
+  iv(gir, 710, "Sostituzione", "Sostituita la girante della pompa acqua mare.", "fdt", "", 45, "Girante – cod. 21951346", 870, "ok");
+  iv(car, 240, "Manutenzione ordinaria", "Alaggio, pulizia carena e antivegetativa (2 mani).", "off", "Cantiere del Porto", 950, "Antivegetativa 2,5 L ×2", 1150, "ok");
+  iv(est, 150, "Controllo", "Revisione estintori: tutti carichi e sigillati.", "off", "Antincendio Marina", 60, "", "", "ok");
+  iv(bat, 120, "Controllo", "Tensione a riposo 12,7 V. Morsetti puliti e ingrassati.", "fdt", "", 0, "", 1190, "ok");
+  iv(wc, 40, "Controllo", "La pompa è dura da azionare e perde un po' dalla guarnizione.", "fdt", "", 0, "", 1230, "check");
+  iv(sen, 3, "Guasto segnalato", "La pompa non parte né in automatico né in manuale. Controllare fusibile e galleggiante.", "fdt", "", 0, "", 1245, "ko");
+
+  const td = (s, titolo, pri, note) => S.daFare.push({ id:uid(), titolo, sistemaId:s ? s.id : "", priorita:pri, note, creato:oggi(), fatto:false, esempio:true });
+  td(sen, "Riparare o sostituire la pompa di sentina elettrica", "alta", "Portare il codice della pompa vecchia in negozio.");
+  td(wc, "Cambiare le guarnizioni della pompa del WC", "media", "");
+  td(ano, "Controllare gli anodi al prossimo alaggio", "bassa", "");
+}
+function haEsempi(){ return S.sistemi.some(s => s.esempio) || S.interventi.some(i => i.esempio) || S.daFare.some(t => t.esempio); }
+
+/* =========================================================
+   DISEGNO DELLA BARCA (SVG)
+   ========================================================= */
+function svgVistaAlto(vela){
+  let g = "";
+  // Griglia "carta nautica" sul mare
+  for (let y = 60; y < 900; y += 60) g += `<path class="mare-griglia" d="M0 ${y} H400" opacity=".5"/>`;
+  g += `<path class="scafo" d="M200,30 C285,120 345,300 345,520 C345,680 335,790 320,870 L80,870 C65,790 55,680 55,520 C55,300 115,120 200,30 Z"/>
+        <path class="coperta" d="M200,62 C268,142 322,310 322,520 C322,668 313,772 301,848 L99,848 C87,772 78,668 78,520 C78,310 132,142 200,62 Z"/>`;
+  if (vela){
+    g += `<rect class="tuga" x="128" y="240" width="144" height="345" rx="44"/>
+      <rect class="osteriggio" x="176" y="270" width="48" height="40" rx="6"/>
+      <rect class="osteriggio" x="176" y="445" width="48" height="40" rx="6"/>
+      <rect class="pozzetto" x="108" y="622" width="184" height="215" rx="20"/>
+      <circle cx="200" cy="772" r="34" fill="none" stroke="var(--tratto)" stroke-width="5"/>
+      <line class="cavo" x1="200" y1="330" x2="200" y2="46"/>
+      <line class="cavo" x1="200" y1="330" x2="70" y2="385"/>
+      <line class="cavo" x1="200" y1="330" x2="330" y2="385"/>
+      <line class="cavo" x1="200" y1="330" x2="200" y2="866"/>
+      <line class="boma" x1="200" y1="340" x2="200" y2="612"/>
+      <circle class="albero" cx="200" cy="330" r="12"/>`;
+  } else {
+    g += `<rect class="tuga" x="108" y="215" width="184" height="360" rx="34"/>
+      <path class="osteriggio" d="M120,252 Q200,206 280,252 L280,278 Q200,236 120,278 Z"/>
+      <rect class="pozzetto" x="140" y="320" width="120" height="175" rx="20"/>
+      <circle cx="200" cy="360" r="20" fill="none" stroke="var(--tratto)" stroke-width="4"/>
+      <rect class="pozzetto" x="98" y="605" width="204" height="240" rx="18"/>
+      <rect class="tuga" x="78" y="868" width="244" height="24" rx="6"/>`;
+  }
+  g += `<text class="etic" x="200" y="22" text-anchor="middle">▲ Prua</text>
+        <text class="etic" x="200" y="906" text-anchor="middle">Poppa</text>`;
+  return { viewBox:"0 0 400 910", contenuto:g, scala:1 };
+}
+function svgVistaLato(vela){
+  const scafo = "M45,190 L855,176 C845,225 815,280 760,300 L190,306 C120,300 70,270 55,240 Z";
+  let g = `<defs><clipPath id="cpViva"><rect x="0" y="262" width="900" height="300"/></clipPath></defs>
+    <rect x="0" y="262" width="900" height="198" fill="var(--mare-linea)" opacity=".55"/>`;
+  for (let y = 300; y < 460; y += 40) g += `<path class="mare-griglia" d="M0 ${y} Q225 ${y - 8} 450 ${y} T900 ${y}" opacity=".6"/>`;
+  if (vela){
+    g += `<path class="scuro" d="M440,303 L462,425 L555,425 L536,302 Z"/>
+      <path class="scuro" d="M150,302 L140,385 L180,385 L190,304 Z"/>`;
+  } else {
+    g += `<line x1="430" y1="300" x2="200" y2="320" stroke="var(--tratto)" stroke-width="5"/>
+      <ellipse class="scuro" cx="192" cy="322" rx="7" ry="22"/>
+      <path class="scuro" d="M160,305 L150,348 L178,348 L183,306 Z"/>`;
+  }
+  g += `<path class="scafo" d="${scafo}"/><path class="viva" d="${scafo}" clip-path="url(#cpViva)"/>
+    <line class="linea-gall" x1="40" y1="262" x2="860" y2="262"/>`;
+  if (vela){
+    g += `<path class="tuga" d="M290,184 L325,150 L615,150 L680,180 Z"/>
+      <rect class="osteriggio" x="360" y="160" width="40" height="14" rx="4"/><rect class="osteriggio" x="430" y="160" width="40" height="14" rx="4"/><rect class="osteriggio" x="540" y="160" width="40" height="14" rx="4"/>
+      <line class="cavo" x1="500" y1="22" x2="848" y2="178"/><line class="cavo" x1="500" y1="22" x2="52" y2="190"/>
+      <line class="albero-lato" x1="500" y1="150" x2="500" y2="18"/>
+      <line class="boma" x1="500" y1="140" x2="225" y2="137"/>`;
+  } else {
+    g += `<path class="tuga" d="M250,186 L295,118 L650,118 L730,180 Z"/>
+      <path class="tuga" d="M320,118 L350,82 L560,82 L585,118 Z"/>
+      <rect class="osteriggio" x="330" y="132" width="70" height="26" rx="5"/><rect class="osteriggio" x="420" y="132" width="90" height="26" rx="5"/><rect class="osteriggio" x="530" y="132" width="80" height="26" rx="5"/>`;
+  }
+  g += `<text class="etic" x="18" y="452">◀ Poppa</text><text class="etic" x="882" y="452" text-anchor="end">Prua ▶</text>
+        <text class="etic" x="700" y="240" text-anchor="middle" font-size="14">opera morta</text>
+        <text class="etic-b" x="700" y="290" text-anchor="middle">opera viva</text>`;
+  return { viewBox:"0 0 900 460", contenuto:g, scala:1.15 };
+}
+function corto(s){ s = String(s || ""); return s.length > 16 ? s.slice(0, 15) + "…" : s; }
+function svgPin(s, k){
+  const p = (s.pos && s.pos[vistaDisegno]) || posizioniIniziali(s.categoria)[vistaDisegno];
+  const st = effStato(s);
+  return `<g class="pin st-${st} ${passaFiltro(s) ? "" : "spento"}" data-id="${s.id}" transform="translate(${p.x},${p.y}) scale(${k})" role="button" aria-label="${esc(s.nome)}: ${STATI[st].nome}">
+    <title>${esc(s.nome)} – ${STATI[st].nome}</title>
+    <circle class="pin-hit" r="32"/>
+    <circle class="pin-bg" r="22"/>
+    <text class="pin-ico" y="8" text-anchor="middle">${esc(s.icona)}</text>
+    <circle class="pin-badge" cx="18" cy="-17" r="10"/>
+    <text class="pin-sim" x="18" y="-12.5" text-anchor="middle">${STATI[st].sim}</text>
+    ${S.ui.nomi ? `<text class="pin-nome" y="42" text-anchor="middle">${esc(corto(s.nome))}</text>` : ""}
+  </g>`;
+}
+function svgBarca(){
+  const vela = S.barca.tipo === "vela";
+  const v = vistaDisegno === "alto" ? svgVistaAlto(vela) : svgVistaLato(vela);
+  // I pin "spenti" dal filtro vanno disegnati sotto
+  const ord = S.sistemi.slice().sort((a, b) => (passaFiltro(a) ? 1 : 0) - (passaFiltro(b) ? 1 : 0));
+  return `<svg id="svgBarca" viewBox="${v.viewBox}" xmlns="http://www.w3.org/2000/svg" aria-label="Disegno della barca">
+    ${v.contenuto}${ord.map(s => svgPin(s, v.scala)).join("")}</svg>`;
+}
+
+/* Trascinamento dei pin (touch e mouse) */
+function collegaSvg(){
+  const svg = $("#svgBarca"); if (!svg) return;
+  let drag = null;
+  const punto = e => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+  const vb = svg.viewBox.baseVal;
+  svg.addEventListener("pointerdown", e => {
+    const pin = e.target.closest(".pin"); if (!pin) return;
+    drag = { id:pin.dataset.id, pin, x0:e.clientX, y0:e.clientY, mosso:false, k: vistaDisegno === "alto" ? 1 : 1.15 };
+    if (modoSposta){ e.preventDefault(); try { pin.setPointerCapture(e.pointerId); } catch(_){} pin.classList.add("trascina"); }
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!drag || !modoSposta) return;
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 6) drag.mosso = true;
+    if (!drag.mosso) return;
+    const p = punto(e);
+    drag.x = Math.max(20, Math.min(vb.width - 20, p.x)); drag.y = Math.max(20, Math.min(vb.height - 20, p.y));
+    drag.pin.setAttribute("transform", `translate(${drag.x},${drag.y}) scale(${drag.k})`);
+  });
+  const fine = e => {
+    if (!drag) return;
+    const d = drag; drag = null; d.pin.classList.remove("trascina");
+    if (e.type === "pointercancel") return;
+    if (modoSposta && d.mosso){
+      const s = trova(d.id); if (s){ s.pos[vistaDisegno] = { x:Math.round(d.x), y:Math.round(d.y) }; salva(); }
+    } else if (!d.mosso){ apriScheda(d.id); }
+  };
+  svg.addEventListener("pointerup", fine);
+  svg.addEventListener("pointercancel", fine);
+}
+
+/* =========================================================
+   SCHERMATE PRINCIPALI
+   ========================================================= */
+function renderTutto(){
+  if (!S || S.primoAvvio){ $("#top").hidden = true; $("#nav").hidden = true; $("#main").innerHTML = viewBenvenuto(); return; }
+  $("#top").hidden = false; $("#nav").hidden = false;
+  renderTop(); renderNav(); renderMain();
+}
+function renderTop(){
+  const r = riepilogo();
+  const btn = (k, col, testo) => `<button data-act="filtraStato" data-v="${k}"><span class="pallino" style="background:${col}"></span>${testo}</button>`;
+  $("#top").innerHTML = `<div class="top-riga">
+      <div class="titolo-barca">${S.barca.tipo === "vela" ? "⛵" : "🛥️"} ${esc(S.barca.nome || "La mia barca")}</div>
+      <button class="chip-ore" data-act="vai" data-v="ore" aria-label="Ore motore">⏱️ ${fmtOre(S.barca.oreMotore)} h</button>
+    </div>
+    <div class="riepilogo" aria-label="Riepilogo">
+      ${btn("ok", "var(--ok)", `${r.ok} ${r.ok === 1 ? "sistema" : "sistemi"} OK`)}
+      ${btn("check", "var(--check)", `${r.check} da controllare`)}
+      ${btn("ko", "var(--ko)", `${r.ko} ${r.ko === 1 ? "guasto" : "guasti"}`)}
+      ${r.nv ? btn("nv", "var(--nv)", `${r.nv} non ${r.nv === 1 ? "verificato" : "verificati"}`) : ""}
+      <button data-act="vai" data-v="dafare">📅 ${r.scad} ${r.scad === 1 ? "scadenza" : "scadenze"} nei prossimi 30 giorni</button>
+    </div>`;
+}
+function renderNav(){
+  const aperti = S.daFare.filter(t => !t.fatto).length + S.sistemi.filter(s => effStato(s) === "ko").length;
+  const voci = [["barca","⚓","Barca"],["dafare","📋","Da fare"],["registro","📖","Registro"],["ore","⏱️","Ore"],["impostazioni","⚙️","Impostaz."]];
+  $("#nav").innerHTML = `<div class="inner"><div class="nav-marchio">⚓ Diario di bordo</div>${voci.map(([k, ic, t]) =>
+    `<button class="${vista === k ? "on" : ""}" data-act="vai" data-v="${k}" aria-current="${vista === k ? "page" : "false"}">
+      <span class="ic">${ic}</span>${t}${k === "dafare" && aperti ? `<span class="badge">${aperti}</span>` : ""}</button>`).join("")}</div>`;
+}
+function renderMain(){
+  const m = $("#main");
+  if (vista === "barca"){ m.innerHTML = viewBarca(); collegaSvg(); }
+  else if (vista === "dafare") m.innerHTML = viewDaFare();
+  else if (vista === "registro") m.innerHTML = viewRegistro();
+  else if (vista === "ore") m.innerHTML = viewOre();
+  else m.innerHTML = viewImpostazioni();
+}
+function aggiornaTutto(){
+  if (!S || S.primoAvvio){ renderTutto(); return; }
+  renderTop(); renderNav();
+  // Non ridisegno la schermata Ore mentre si sta scrivendo un valore
+  if (!(vista === "ore" && document.activeElement && document.activeElement.id === "oreNuove")) renderMain();
+  sheets.forEach(sh => { if (sh.opts.vivo) disegnaSheet(sh); });
+}
+
+/* ---- 0. Benvenuto (primo avvio) ---- */
+let tipoBenvenuto = "vela";
+function viewBenvenuto(){
+  return `<div class="benvenuto">
+    <div class="logo" aria-hidden="true">⚓</div>
+    <h1>Diario di bordo</h1>
+    <p class="sotto">Lo stato di ogni impianto della barca, i lavori fatti e quelli da fare. Tutto resta su questo telefono.</p>
+    <div class="card">
+      <label class="et" for="wNome" style="margin-top:0">Nome della barca</label>
+      <input class="campo" id="wNome" placeholder="es. Stella Marina" autocomplete="off">
+      <label class="et">Tipo di barca</label>
+      <div class="seg">
+        <button data-act="wTipo" data-v="vela" class="${tipoBenvenuto === "vela" ? "on" : ""}">⛵ A vela</button>
+        <button data-act="wTipo" data-v="motore" class="${tipoBenvenuto === "motore" ? "on" : ""}">🛥️ A motore</button>
+      </div>
+      <label class="et" for="wLung">Lunghezza (metri)</label>
+      <input class="campo" id="wLung" type="number" inputmode="decimal" step="0.1" value="10">
+    </div>
+    <button class="btn primary blocco" data-act="avvia" data-v="esempio" style="margin-top:14px">Prova con dati di esempio</button>
+    <p class="muted piccolo" style="text-align:center;margin:6px 0 14px">Gli esempi si cancellano con un tasto da Impostazioni.</p>
+    <button class="btn blocco" data-act="avvia" data-v="zero">Inizia da zero</button>
+    <button class="btn blocco" data-act="importa" style="margin-top:10px">📥 Ho già un backup: importalo</button>
+  </div>`;
+}
+
+/* ---- 1. Barca ---- */
+function viewBarca(){
+  const tipo = S.barca.tipo === "vela" ? "Barca a vela" : "Barca a motore";
+  const chip = (k, t) => `<button class="chip ${filtroStato === k ? "on" : ""}" data-act="filtraStato" data-v="${k}">${t}</button>`;
+  const cats = Object.entries(CATEGORIE).filter(([k]) => S.sistemi.some(s => s.categoria === k));
+  const lista = S.sistemi.filter(passaFiltro).sort((a, b) => ordineStato[effStato(a)] - ordineStato[effStato(b)] || a.nome.localeCompare(b.nome));
+  return `<div class="layout-barca"><div class="col-disegno">
+    <div style="height:12px"></div>
+    <div class="seg" role="tablist">
+      <button class="${vistaDisegno === "alto" ? "on" : ""}" data-act="disegno" data-v="alto">Vista dall'alto</button>
+      <button class="${vistaDisegno === "lato" ? "on" : ""}" data-act="disegno" data-v="lato">Vista di lato</button>
+    </div>
+    <div class="filtri" style="margin-top:8px">
+      ${chip("tutti", "Tutti")}${chip("ok", "🟢 OK")}${chip("check", "🟡 Da controllare")}${chip("ko", "🔴 Guasti")}${chip("nv", "⚪ Non verificati")}
+    </div>
+    ${cats.length > 1 ? `<select class="chip-select" data-chg="filtroCat" aria-label="Filtra per categoria" style="width:100%">
+      <option value="tutte">Tutte le categorie</option>
+      ${cats.map(([k, c]) => `<option value="${k}" ${filtroCat === k ? "selected" : ""}>${c.icona} ${c.nome}</option>`).join("")}
+    </select>` : ""}
+    ${modoSposta ? `<div class="avviso">✋ Trascina le icone nel punto in cui si trova davvero l'impianto. Poi tocca <b>Fatto</b>.</div>` : ""}
+    <div class="disegno ${vistaDisegno} ${modoSposta ? "sposta-attivo" : ""}">
+      ${svgBarca()}
+    </div>
+    <div class="didascalia">${tipo} di ${fmtOre(S.barca.lunghezza)} m${vistaDisegno === "lato" ? ". Scorri di lato per vederla tutta." : ""}</div>
+    ${!S.sistemi.length ? `<div class="card sabbia"><b>La barca è ancora vuota.</b><br>Tocca “Aggiungi sistema” e scegli dall'elenco gli impianti che hai a bordo.</div>` : ""}
+    <div class="fila">
+      <button class="btn primary" data-act="catalogo">+ Aggiungi sistema</button>
+      ${S.sistemi.length ? `<button class="btn ${modoSposta ? "warn" : ""}" data-act="sposta">${modoSposta ? "✓ Fatto" : "✋ Sposta icone"}</button>` : ""}
+    </div>
+    ${S.sistemi.length ? `<label class="check-riga"><input type="checkbox" data-chg="nomi" ${S.ui.nomi ? "checked" : ""}> Mostra i nomi sul disegno</label>` : ""}
+    </div><div class="col-lista">
+    ${S.sistemi.length ? `<h2>Sistemi di bordo</h2>${lista.length ? lista.map(rigaSistema).join("") : `<div class="vuoto">Nessun sistema con questo filtro.</div>`}` : ""}
+    </div></div>`;
+}
+function rigaSistema(s){
+  const st = effStato(s), sc = scadenza(s);
+  let sotto = `<span class="stato-txt st-${st}">${STATI[st].nome}</span>`;
+  if (sc && (sc.giorni != null || sc.oreMancanti != null)) sotto += ` · manutenzione ${testoScadenza(sc)}`;
+  else if (s.ultimaVerifica) sotto += ` · verificato il ${fmtData(s.ultimaVerifica)}`;
+  return `<button class="riga st-${st}" data-act="scheda" data-id="${s.id}">
+    <span class="ico">${esc(s.icona)}</span>
+    <span class="corpo"><span class="nome">${esc(s.nome)}</span><br><span class="sotto">${sotto}</span></span>
+    <span class="freccia">›</span></button>`;
+}
+
+/* ---- 2. Da fare ---- */
+function viewDaFare(){
+  const guasti = S.sistemi.filter(s => effStato(s) === "ko");
+  const scad = S.sistemi.map(s => ({ s, sc:scadenza(s) })).filter(x => x.sc && (x.sc.giorni != null || x.sc.oreMancanti != null))
+    .sort((a, b) => a.sc.urgenza - b.sc.urgenza);
+  const vicine = scad.filter(x => x.sc.urgenza <= 90), lontane = scad.filter(x => x.sc.urgenza > 90);
+  const ordP = { alta:0, media:1, bassa:2 };
+  const aperti = S.daFare.filter(t => !t.fatto).sort((a, b) => ordP[a.priorita] - ordP[b.priorita]);
+  const fatti = S.daFare.filter(t => t.fatto).sort((a, b) => (b.fattoIl || "").localeCompare(a.fattoIl || ""));
+  const rigaScad = ({ s, sc }) => `<button class="riga st-${sc.imminente ? "check" : "ok"}" data-act="scheda" data-id="${s.id}">
+      <span class="ico">${esc(s.icona)}</span>
+      <span class="corpo"><span class="nome">${esc(s.nome)}</span><br><span class="sotto"><b>${sc.scaduta ? "⚠️ " : ""}Manutenzione ${testoScadenza(sc)}</b></span></span><span class="freccia">›</span></button>`;
+  const backupVecchio = !S.barca.ultimoBackup || giorniTra(oggi(), S.barca.ultimoBackup) > 30;
+  let h = `<div class="due-col"><div><h2>Lavori da fare</h2>
+    <button class="btn primary blocco" data-act="nuovoTodo">+ Nuovo lavoro da fare</button>
+    ${aperti.length ? aperti.map(rigaTodo).join("") : `<div class="vuoto">Nessun lavoro in sospeso.</div>`}`;
+  h += `</div><div><h2>🔴 Guasti (${guasti.length})</h2>${guasti.length ? guasti.map(rigaSistema).join("") : `<div class="vuoto">Nessun guasto segnalato. 👍</div>`}`;
+  h += `<h2>📅 Scadenze vicine</h2>${vicine.length ? vicine.map(rigaScad).join("") : `<div class="vuoto">Nessuna scadenza nei prossimi 3 mesi.</div>`}`;
+  if (lontane.length) h += `<details class="card"><summary style="font-weight:700;min-height:44px;cursor:pointer">Scadenze più lontane (${lontane.length})</summary>${lontane.map(rigaScad).join("")}</details>`;
+  if (fatti.length) h += `<details class="card"><summary style="font-weight:700;min-height:44px;cursor:pointer">Lavori completati (${fatti.length})</summary>
+      ${fatti.map(t => `<div class="riga" style="cursor:default"><span class="ico">✅</span><span class="corpo"><span class="nome" style="text-decoration:line-through">${esc(t.titolo)}</span><br><span class="sotto">fatto il ${fmtData(t.fattoIl)}</span></span>
+        <button class="btn" data-act="todoRiapri" data-id="${t.id}">Riapri</button></div>`).join("")}</details>`;
+  if (S.sistemi.length && backupVecchio) h += `<div class="card sabbia">💾 <b>Fai un backup.</b> ${S.barca.ultimoBackup ? `L'ultimo è del ${fmtData(S.barca.ultimoBackup)}.` : "Non ne hai ancora fatto uno."}
+      Se il telefono si rompe o si perde, il backup è l'unico modo per recuperare i dati.
+      <div style="margin-top:10px"><button class="btn primary blocco" data-act="condividi">Fai il backup ora</button></div></div>`;
+  return h + "</div></div>";
+}
+function rigaTodo(t){
+  const s = t.sistemaId ? trova(t.sistemaId) : null;
+  return `<div class="riga pri-${t.priorita}" style="cursor:default">
+    <button style="all:unset;flex:1;min-width:0;cursor:pointer;display:flex;gap:12px;align-items:center" data-act="apriTodo" data-id="${t.id}">
+      <span class="ico">${s ? esc(s.icona) : "📝"}</span>
+      <span class="corpo"><span class="nome">${esc(t.titolo)}</span><br><span class="sotto">${PRIORITA[t.priorita]}${s ? " · " + esc(s.nome) : ""}</span></span>
+    </button>
+    <button class="btn ok" data-act="todoFatto" data-id="${t.id}" aria-label="Segna come fatto">✓ Fatto</button></div>`;
+}
+
+/* ---- 3. Registro ---- */
+function interventiFiltrati(ignoraAnno){
+  return S.interventi.filter(i =>
+    (!filtriReg.sistema || i.sistemaId === filtriReg.sistema) &&
+    (ignoraAnno || !filtriReg.anno || i.data.slice(0, 4) === filtriReg.anno) &&
+    (!filtriReg.tipo || i.tipo === filtriReg.tipo)
+  ).sort((a, b) => b.data.localeCompare(a.data));
+}
+function viewRegistro(){
+  const anni = [...new Set(S.interventi.map(i => i.data.slice(0, 4)))].sort().reverse();
+  const lista = interventiFiltrati();
+  const perAnno = {};
+  interventiFiltrati(true).forEach(i => { const a = i.data.slice(0, 4); perAnno[a] = (perAnno[a] || 0) + (Number(i.costo) || 0); });
+  const totale = lista.reduce((t, i) => t + (Number(i.costo) || 0), 0);
+  return `<h2>Registro lavori</h2><div class="due-col reg"><div>
+    <div class="fila"><button class="btn primary" data-act="nuovoIntervento">+ Nuovo intervento</button>
+      <button class="btn" data-act="stampa">🖨️ Stampa / PDF</button></div>
+    <div class="card">
+      <label class="et" style="margin-top:0">Sistema</label>
+      <select class="campo" data-chg="regSistema"><option value="">Tutti i sistemi</option>
+        ${S.sistemi.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(s => `<option value="${s.id}" ${filtriReg.sistema === s.id ? "selected" : ""}>${esc(s.icona + " " + s.nome)}</option>`).join("")}</select>
+      <div class="due">
+        <div><label class="et">Anno</label><select class="campo" data-chg="regAnno"><option value="">Tutti</option>${anni.map(a => `<option ${filtriReg.anno === a ? "selected" : ""}>${a}</option>`).join("")}</select></div>
+        <div><label class="et">Tipo</label><select class="campo" data-chg="regTipo"><option value="">Tutti</option>${TIPI.map(t => `<option ${filtriReg.tipo === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+      </div>
+    </div>
+    ${Object.keys(perAnno).length ? `<div class="card sabbia"><h3>Spese per anno</h3><table class="tabella">
+      ${Object.keys(perAnno).sort().reverse().map(a => `<tr><td>${a}</td><td class="num"><b>${fmtEuro(perAnno[a])}</b></td></tr>`).join("")}</table>
+      <p class="muted piccolo" style="margin:8px 0 0">Totale dell'elenco: <b>${fmtEuro(totale)}</b> (${lista.length} interventi)</p></div>` : ""}
+    </div><div>
+    ${lista.length ? lista.map(cardIntervento).join("") : `<div class="vuoto">Nessun intervento registrato${filtriReg.sistema || filtriReg.anno || filtriReg.tipo ? " con questi filtri" : ""}.</div>`}
+    </div></div>`;
+}
+function cardIntervento(i, senzaSistema){
+  const s = trova(i.sistemaId);
+  const chi = i.chi === "off" ? (i.officina || "Officina") : "Fai da te";
+  return `<button class="intervento" data-act="apriIntervento" data-id="${i.id}">
+    <div class="testa"><span>${fmtData(i.data)}</span><span>${Number(i.costo) ? fmtEuro(i.costo) : ""}</span></div>
+    ${senzaSistema === true ? "" : `<div>${s ? esc(s.icona + " " + s.nome) : "<i>sistema eliminato</i>"}</div>`}
+    <span class="tipo t-${esc(i.tipo.split(" ")[0])}">${esc(i.tipo)}</span>
+    ${i.descrizione ? `<div>${esc(i.descrizione)}</div>` : ""}
+    <div class="muted piccolo">${esc(chi)}${i.oreMotore !== "" && i.oreMotore != null ? ` · ${fmtOre(i.oreMotore)} ore motore` : ""}${(i.fotoPrima.length + i.fotoDopo.length) ? ` · 📷 ${i.fotoPrima.length + i.fotoDopo.length}` : ""}</div>
+  </button>`;
+}
+
+/* ---- 4. Ore motore ---- */
+function viewOre(){
+  const aOre = S.sistemi.map(s => ({ s, sc:scadenza(s) })).filter(x => x.sc && x.sc.oreMancanti != null).sort((a, b) => a.sc.oreMancanti - b.sc.oreMancanti);
+  const storico = (S.barca.storicoOre || []).slice().sort((a, b) => b.data.localeCompare(a.data)).slice(0, 8);
+  return `<div class="colonna-stretta"><h2>Ore motore</h2>
+    <div class="card" style="text-align:center">
+      <div class="muted">Contaore attuale</div>
+      <div class="ore-grande">${fmtOre(S.barca.oreMotore)} h</div>
+      <div class="muted piccolo">${storico[0] ? "aggiornato il " + fmtData(storico[0].data) : "non ancora inserito"}</div>
+    </div>
+    <label class="et" for="oreNuove">Leggi il contaore e scrivi qui il numero</label>
+    <input class="campo campo-ore" id="oreNuove" type="number" inputmode="decimal" step="0.1" min="0" value="${S.barca.oreMotore || ""}">
+    <div class="fila" style="margin-top:10px">
+      <button class="btn" data-act="oreQuick" data-v="1">+1 h</button><button class="btn" data-act="oreQuick" data-v="5">+5 h</button><button class="btn" data-act="oreQuick" data-v="10">+10 h</button>
+    </div>
+    <button class="btn primary blocco" data-act="salvaOre" style="margin-top:12px">Salva le ore</button>
+    <h2>Manutenzioni a ore</h2>
+    ${aOre.length ? aOre.map(({ s, sc }) => `<button class="riga st-${sc.oreMancanti <= 20 ? "check" : "ok"}" data-act="scheda" data-id="${s.id}">
+      <span class="ico">${esc(s.icona)}</span><span class="corpo"><span class="nome">${esc(s.nome)}</span><br>
+      <span class="sotto">prossima a ${fmtOre(sc.ore)} h · ${sc.oreMancanti < 0 ? `<b>superata di ${fmtOre(-sc.oreMancanti)} h</b>` : `mancano <b>${fmtOre(sc.oreMancanti)} h</b>`}</span></span><span class="freccia">›</span></button>`).join("")
+      : `<div class="vuoto">Nessun sistema ha una manutenzione a ore. Puoi impostarla nella scheda del motore (es. ogni 200 ore).</div>`}
+    ${storico.length ? `<h2>Ultime letture</h2><div class="card"><table class="tabella">${storico.map(r => `<tr><td>${fmtData(r.data)}</td><td class="num"><b>${fmtOre(r.ore)} h</b></td></tr>`).join("")}</table></div>` : ""}</div>`;
+}
+function aggiornaOre(n){
+  n = Number(n); if (isNaN(n) || n < 0) return;
+  S.barca.oreMotore = n;
+  const st = S.barca.storicoOre || (S.barca.storicoOre = []);
+  const og = st.find(r => r.data === oggi()); if (og) og.ore = n; else st.push({ data:oggi(), ore:n });
+  if (st.length > 200) st.splice(0, st.length - 200);
+}
+
+/* ---- 5. Impostazioni ---- */
+function viewImpostazioni(){
+  const b = S.barca;
+  return `<div class="griglia-imp"><section><h2>Dati della barca</h2>
+    <div class="card">
+      <label class="et" for="bNome" style="margin-top:0">Nome</label><input class="campo" id="bNome" value="${esc(b.nome)}">
+      <label class="et">Tipo</label>
+      <div class="seg"><button data-act="bTipo" data-v="vela" class="${b.tipo === "vela" ? "on" : ""}">⛵ A vela</button><button data-act="bTipo" data-v="motore" class="${b.tipo === "motore" ? "on" : ""}">🛥️ A motore</button></div>
+      <div class="due">
+        <div><label class="et" for="bLung">Lunghezza (m)</label><input class="campo" id="bLung" type="number" inputmode="decimal" step="0.1" value="${esc(b.lunghezza)}"></div>
+        <div><label class="et" for="bPorto">Porto</label><input class="campo" id="bPorto" value="${esc(b.porto)}"></div>
+      </div>
+      <label class="et" for="bModello">Cantiere e modello</label><input class="campo" id="bModello" value="${esc(b.modello)}" placeholder="es. Beneteau Oceanis 37">
+      <button class="btn primary blocco" data-act="salvaBarca" style="margin-top:16px">Salva i dati della barca</button>
+    </div>
+
+    </section><section><h2>Backup dei dati</h2>
+    <div class="card">
+      <p>Il backup è un file con tutti i dati e le foto. Serve per non perdere niente e per passare i dati da un telefono all'altro.</p>
+      <p class="muted piccolo">Ultimo backup: <b>${b.ultimoBackup ? fmtData(b.ultimoBackup) : "mai"}</b></p>
+      <div class="fila">
+        <button class="btn primary" data-act="condividi">📤 Invia backup (WhatsApp, email…)</button>
+        <button class="btn" data-act="esporta">💾 Scarica backup</button>
+      </div>
+      <button class="btn blocco" data-act="importa" style="margin-top:10px">📥 Ripristina da un backup</button>
+      <p class="muted piccolo" id="spazio" style="margin-top:12px"></p>
+    </div>
+
+    </section><section><h2>Registro per il cantiere</h2>
+    <div class="card"><p>Una pagina con tutti gli interventi e le spese, da stampare o salvare come PDF.</p>
+      <button class="btn blocco" data-act="stampa">🖨️ Stampa / Salva PDF</button></div>
+
+    </section><section><h2>Aspetto</h2>
+    <div class="card"><div class="seg">
+      <button data-act="tema" data-v="auto" class="${S.ui.tema === "auto" ? "on" : ""}">Automatico</button>
+      <button data-act="tema" data-v="chiaro" class="${S.ui.tema === "chiaro" ? "on" : ""}">☀️ Chiaro</button>
+      <button data-act="tema" data-v="scuro" class="${S.ui.tema === "scuro" ? "on" : ""}">🌙 Scuro</button></div>
+      <p class="muted piccolo" style="margin-top:8px">Sotto il sole forte conviene il tema chiaro.</p></div>
+
+    ${haEsempi() ? `</section><section><h2>Dati di esempio</h2><div class="card sabbia"><p>Stai usando anche i dati di esempio. Cancellali quando vuoi: i sistemi che hai aggiunto tu restano.</p>
+      <button class="btn danger-ghost blocco" data-act="cancellaEsempio">Cancella i dati di esempio</button></div>` : ""}
+
+    </section><section><h2>Zona pericolosa</h2>
+    <div class="card"><p>Cancella tutto quello che c'è nell'app su questo telefono. Fai prima un backup.</p>
+      <button class="btn danger blocco" data-act="cancellaTutto">Cancella tutti i dati</button></div>
+    </section></div>
+    <p class="muted piccolo" style="text-align:center;margin:20px 0">Diario di bordo · i dati restano solo su questo dispositivo</p>`;
+}
+async function mostraSpazio(){
+  const el = $("#spazio"); if (!el || !navigator.storage || !navigator.storage.estimate) return;
+  try { const e = await navigator.storage.estimate(); el.textContent = `Spazio usato dall'app: ${(e.usage / 1048576).toFixed(1)} MB`; } catch(_){}
+}
+
+/* =========================================================
+   PANNELLI (scheda sistema, moduli) con tasto Indietro
+   ========================================================= */
+function apriSheet(renderFn, opts = {}){
+  const el = document.createElement("section"); el.className = "sheet"; el.setAttribute("role", "dialog");
+  document.body.appendChild(el);
+  const sh = { el, renderFn, opts, pushed:false };
+  sheets.push(sh); aggiornaVelo();
+  try { history.pushState({ sheet:sheets.length }, ""); sh.pushed = true; } catch(_){}
+  disegnaSheet(sh);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("aperto")));
+  return sh;
+}
+function disegnaSheet(sh){
+  const r = sh.renderFn(sh);
+  if (!r){ rimuoviSheet(sh); return; }
+  const vecchio = sh.el.querySelector(".sheet-corpo"), scroll = vecchio ? vecchio.scrollTop : 0;
+  sh.el.innerHTML = `<header class="sheet-testa"><button class="btn-indietro" data-act="chiudi">‹ Indietro</button><h2>${r.titolo}</h2></header>
+    <div class="sheet-corpo"><div class="stretto">${r.html}</div></div>`;
+  sh.el.querySelector(".sheet-corpo").scrollTop = scroll;
+  if (r.monta) r.monta(sh.el);
+  idrataFoto(sh.el);
+}
+function rimuoviSheet(sh){
+  const i = sheets.indexOf(sh); if (i < 0) return;
+  sheets.splice(i, 1); aggiornaVelo();
+  if (sh.opts.allaChiusura) sh.opts.allaChiusura();
+  sh.el.classList.remove("aperto");
+  setTimeout(() => sh.el.remove(), 230);
+  aggiornaTutto();
+}
+function aggiornaVelo(){ $("#velo").classList.toggle("on", sheets.length > 0); }
+$("#velo").addEventListener("click", () => chiudiTop());
+/* Su PC: Esc chiude foto, finestre e pannelli */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($(".dlg-sfondo")) return;
+  if ($(".visore")){ history.back(); return; }
+  if (sheets.length) chiudiTop();
+});
+function chiudiTop(){
+  const sh = sheets[sheets.length - 1]; if (!sh) return;
+  if (sh.pushed){ history.back(); } else rimuoviSheet(sh);
+}
+window.addEventListener("popstate", () => {
+  const v = $(".visore"); if (v){ v.remove(); return; }
+  const sh = sheets[sheets.length - 1]; if (sh && sh.pushed) rimuoviSheet(sh);
+});
+/* Sostituisce il pannello in cima senza toccare la cronologia */
+function sostituisciTop(renderFn, opts = {}){
+  const vecchio = sheets.pop();
+  if (vecchio){ vecchio.el.remove(); if (vecchio.opts.allaChiusura) vecchio.opts.allaChiusura(); }
+  const el = document.createElement("section"); el.className = "sheet aperto"; el.setAttribute("role", "dialog");
+  document.body.appendChild(el);
+  const sh = { el, renderFn, opts, pushed: vecchio ? vecchio.pushed : false };
+  sheets.push(sh); disegnaSheet(sh); return sh;
+}
+
+/* ---------- Finestre di dialogo e messaggi ---------- */
+function dialogo(msg, bottoni){
+  return new Promise(ok => {
+    const d = document.createElement("div"); d.className = "dlg-sfondo";
+    d.innerHTML = `<div class="dlg" role="alertdialog"><p>${msg}</p><div class="bottoni">${bottoni.map((b, i) => `<button class="btn ${b.cls || ""}" data-i="${i}">${b.t}</button>`).join("")}</div></div>`;
+    d.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b){ d.remove(); ok(bottoni[+b.dataset.i].v); } });
+    document.body.appendChild(d); d.querySelector("button").focus();
+  });
+}
+const conferma = (msg, si = "Elimina", cls = "danger") => dialogo(msg, [{ t:si, v:true, cls }, { t:"Annulla", v:false }]);
+const avviso = msg => dialogo(msg, [{ t:"Ho capito", v:true, cls:"primary" }]);
+let timerToast = null;
+function toast(msg){
+  let t = $(".toast"); if (!t){ t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.innerHTML = msg; clearTimeout(timerToast); timerToast = setTimeout(() => t.remove(), 2800);
+}
+
+/* =========================================================
+   FOTO: compressione, salvataggio, visualizzazione
+   ========================================================= */
+function comprimiFoto(file){
+  return new Promise((ok, ko) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const max = 1280, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Questa immagine non si può leggere")); };
+    img.src = url;
+  });
+}
+/* Apre fotocamera/galleria e restituisce gli id delle foto salvate */
+function scegliFoto(){
+  return new Promise(ok => {
+    const inp = $("#fileFoto"); inp.value = "";
+    inp.onchange = async () => {
+      const files = Array.from(inp.files || []); if (!files.length) return ok([]);
+      toast("📷 Salvo le foto…");
+      const ids = [];
+      for (const f of files){
+        try {
+          const dati = await comprimiFoto(f), id = "f_" + uid();
+          await DB.scrivi("foto", id, dati); fotoCache.set(id, dati); ids.push(id);
+        } catch(e){ erroreMemoria(e); break; }
+      }
+      ok(ids);
+    };
+    inp.click();
+  });
+}
+function grigliaFoto(ids, ctx){
+  return `<div class="foto-griglia">${ids.map(id => `<button data-act="vediFoto" data-foto-id="${id}" data-ctx="${ctx}" aria-label="Apri foto"><img data-foto="${id}" alt=""></button>`).join("")}</div>`;
+}
+async function idrataFoto(root){
+  for (const img of $$("img[data-foto]", root)){
+    if (img.src) continue;
+    const id = img.dataset.foto;
+    let d = fotoCache.get(id);
+    if (!d){ try { d = await DB.leggi("foto", id); if (d) fotoCache.set(id, d); } catch(_){} }
+    if (d) img.src = d;
+  }
+}
+/* Visore a schermo intero, con eventuale tasto Elimina */
+function apriVisore(id, onElimina){
+  const v = document.createElement("div"); v.className = "visore";
+  v.innerHTML = `<img alt="Foto" src="${fotoCache.get(id) || ""}">
+    <div class="fila">${onElimina ? `<button class="btn danger" data-v="del">🗑️ Elimina foto</button>` : ""}<button class="btn primary" data-v="chiudi">Chiudi</button></div>`;
+  if (!fotoCache.get(id)) DB.leggi("foto", id).then(d => { if (d){ fotoCache.set(id, d); v.querySelector("img").src = d; } });
+  let pushed = false; try { history.pushState({ visore:1 }, ""); pushed = true; } catch(_){}
+  const chiudi = () => { if (pushed) history.back(); else v.remove(); };
+  v.addEventListener("click", async e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.v === "chiudi") chiudi();
+    if (b.dataset.v === "del" && await conferma("Eliminare questa foto?")){ chiudi(); onElimina(); }
+  });
+  document.body.appendChild(v);
+}
+
+/* =========================================================
+   CATALOGO: aggiunta di un sistema dalla lista
+   ========================================================= */
+function apriCatalogo(){
+  apriSheet(() => ({
+    titolo:"Aggiungi sistema",
+    html:`<input class="campo" id="cercaCat" type="search" placeholder="🔎 Cerca (es. pompa, batteria…)" autocomplete="off" enterkeyhint="search">
+      <div id="listaCat"></div>`,
+    monta(el){
+      const disegna = () => {
+        const q = norm($("#cercaCat", el).value).trim();
+        let h = "";
+        Object.entries(CATALOGO).forEach(([cat, voci]) => {
+          if (CATEGORIE[cat].soloVela && S.barca.tipo !== "vela") return;
+          const v = voci.filter(x => !q || norm(x[1]).includes(q) || norm(CATEGORIE[cat].nome).includes(q));
+          if (!v.length) return;
+          h += `<div class="cat-titolo">${CATEGORIE[cat].icona} ${CATEGORIE[cat].nome}</div><div class="cat-griglia">${v.map(x => {
+            const gia = S.sistemi.some(s => s.catalogoId === x[0]);
+            return `<button class="cat-voce" data-act="aggiungiCat" data-cat="${cat}" data-id="${x[0]}"><span class="ico">${x[2]}</span><span>${esc(x[1])}${gia ? `<span class="gia">✓ già a bordo</span>` : ""}</span></button>`;
+          }).join("")}</div>`;
+        });
+        h += `<div class="cat-titolo">🔧 Non è nell'elenco?</div>
+          <button class="btn blocco" data-act="personalizzato">✨ Crea un sistema personalizzato</button>`;
+        $("#listaCat", el).innerHTML = h;
+      };
+      $("#cercaCat", el).addEventListener("input", disegna); disegna();
+    }
+  }));
+}
+function aggiungiDaCatalogo(cat, id){
+  const voce = vocecatalogo(cat, id); if (!voce) return;
+  const s = nuovoSistema(cat, voce); S.sistemi.push(s); salva();
+  sostituisciTop(renderScheda(s.id), { vivo:true });
+  toast(`Aggiunto: ${esc(s.nome)}.<br>Con “✋ Sposta icone” lo metti al posto giusto.`);
+}
+
+/* =========================================================
+   SCHEDA DEL SISTEMA
+   ========================================================= */
+function apriScheda(id){ apriSheet(renderScheda(id), { vivo:true }); }
+function renderScheda(id){
+  return () => {
+    const s = trova(id); if (!s) return null;
+    const st = effStato(s), sc = scadenza(s), m = s.manutenzione;
+    const storico = S.interventi.filter(i => i.sistemaId === id).sort((a, b) => b.data.localeCompare(a.data));
+    const todo = S.daFare.filter(t => t.sistemaId === id && !t.fatto);
+    const spesa = storico.reduce((t, i) => t + (Number(i.costo) || 0), 0);
+    const dato = (k, v) => v !== "" && v != null ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : "";
+    let manHtml;
+    if (!Number(m.mesi) && !Number(m.ore)) manHtml = `<p class="muted">Nessuna manutenzione programmata.</p>`;
+    else {
+      const ogni = [Number(m.mesi) ? `ogni ${m.mesi} mesi` : "", Number(m.ore) ? `ogni ${m.ore} ore motore` : ""].filter(Boolean).join(" oppure ");
+      manHtml = `<p>Da fare <b>${ogni}</b>.</p>
+        <p>Ultima volta: <b>${m.ultimaData ? fmtData(m.ultimaData) : "—"}</b>${m.ultimeOre !== "" ? ` a <b>${fmtOre(m.ultimeOre)} h</b>` : ""}</p>
+        ${sc ? `<p style="font-size:20px">${sc.imminente ? "⚠️" : "📅"} Prossima: <b>${testoScadenza(sc)}</b></p>` : ""}
+        ${sc && sc.manca ? `<p class="muted piccolo">Per calcolare la scadenza inserisci ${!m.ultimaData && Number(m.mesi) ? "la data" : ""}${!m.ultimaData && Number(m.mesi) && m.ultimeOre === "" && Number(m.ore) ? " e " : ""}${m.ultimeOre === "" && Number(m.ore) ? "le ore motore" : ""} dell'ultimo intervento.</p>` : ""}`;
+    }
+    return {
+      titolo:`${esc(s.icona)} ${esc(s.nome)}`,
+      html:`
+        <div class="stato-box st-${st}">
+          <div class="grande">${STATI[st].em} ${STATI[st].nome}</div>
+          <div>${s.ultimaVerifica ? "Ultima verifica: " + fmtData(s.ultimaVerifica) : "Mai verificato"}${st === "check" && s.stato !== "check" ? "<br>Manutenzione in scadenza" : ""}</div>
+        </div>
+        <button class="btn ok blocco" data-act="verificato" data-id="${id}">✓ Verificato oggi: funziona</button>
+        <p class="muted piccolo" style="margin:14px 0 0">Oppure scegli lo stato:</p>
+        <div class="griglia-stati">${Object.keys(STATI).map(k => `<button class="st-${k} ${s.stato === k ? "on" : ""}" data-act="setStato" data-id="${id}" data-v="${k}">${STATI[k].em} ${STATI[k].nome}</button>`).join("")}</div>
+        <div class="fila">
+          <button class="btn primary" data-act="nuovoIntervento" data-id="${id}">🛠️ Registra intervento</button>
+          <button class="btn" data-act="nuovoTodo" data-id="${id}">📝 Lavoro da fare</button>
+        </div>
+
+        <div class="card"><h3>📅 Manutenzione programmata</h3>${manHtml}
+          <button class="btn blocco" data-act="modificaSistema" data-id="${id}">Imposta intervallo</button></div>
+
+        ${todo.length ? `<h2>Lavori da fare</h2>${todo.map(rigaTodo).join("")}` : ""}
+
+        <div class="card"><h3>📷 Foto</h3>
+          ${s.foto.length ? grigliaFoto(s.foto, "sis:" + id) : `<p class="muted">Nessuna foto. Utile fotografare targhetta e matricola.</p>`}
+          <button class="btn blocco" data-act="fotoSistema" data-id="${id}">📷 Aggiungi foto</button></div>
+
+        <div class="card"><h3>Dati</h3>
+          <dl class="dati">
+            ${dato("Categoria", (CATEGORIE[s.categoria] || CATEGORIE.altro).nome)}
+            ${dato("Marca", s.marca)}${dato("Modello", s.modello)}${dato("Matricola", s.matricola)}${dato("Anno", s.anno)}
+            ${dato("Installato il", s.dataInstallazione ? fmtData(s.dataInstallazione) : "")}
+            ${dato("Dove si trova", s.posizioneTesto)}${dato("Note", s.note)}
+            ${spesa ? dato("Speso finora", fmtEuro(spesa)) : ""}
+          </dl>
+          ${!s.marca && !s.modello && !s.posizioneTesto ? `<p class="muted">Aggiungi marca, modello e dove si trova a bordo.</p>` : ""}
+          <button class="btn blocco" data-act="modificaSistema" data-id="${id}" style="margin-top:12px">✏️ Modifica dati</button></div>
+
+        <h2>Storico lavori (${storico.length})</h2>
+        ${storico.length ? storico.map(i => cardIntervento(i, true)).join("") : `<div class="vuoto">Ancora nessun intervento registrato.</div>`}
+
+        <button class="btn danger-ghost blocco" data-act="eliminaSistema" data-id="${id}" style="margin-top:30px">🗑️ Elimina questo sistema</button>`
+    };
+  };
+}
+
+/* ---------- Modulo: modifica / crea sistema ---------- */
+function formSistema(id, sostituisci){
+  const esist = id ? trova(id) : null;
+  const f = esist ? clona(esist) : nuovoSistema("altro", null, { nome:"" });
+  const render = () => ({
+    titolo: esist ? "Modifica dati" : "Sistema personalizzato",
+    html:`
+      <label class="et" for="fNome" style="margin-top:0">Nome</label>
+      <input class="campo" id="fNome" value="${esc(f.nome)}" placeholder="es. Frigorifero">
+      <label class="et">Icona</label>
+      <div class="griglia-icone" id="fIcone">${[...new Set([f.icona, ...ICONE_LIBERE])].map(ic => `<button type="button" class="${ic === f.icona ? "on" : ""}" data-ic="${esc(ic)}">${esc(ic)}</button>`).join("")}</div>
+      <label class="et" for="fCat">Categoria</label>
+      <select class="campo" id="fCat">${Object.entries(CATEGORIE).map(([k, c]) => `<option value="${k}" ${f.categoria === k ? "selected" : ""}>${c.icona} ${c.nome}</option>`).join("")}</select>
+      <div class="due">
+        <div><label class="et" for="fMarca">Marca</label><input class="campo" id="fMarca" value="${esc(f.marca)}"></div>
+        <div><label class="et" for="fModello">Modello</label><input class="campo" id="fModello" value="${esc(f.modello)}"></div>
+        <div><label class="et" for="fMatr">Matricola</label><input class="campo" id="fMatr" value="${esc(f.matricola)}"></div>
+        <div><label class="et" for="fAnno">Anno</label><input class="campo" id="fAnno" type="number" inputmode="numeric" value="${esc(f.anno)}"></div>
+      </div>
+      <label class="et" for="fInst">Data di installazione</label><input class="campo" id="fInst" type="date" value="${esc(f.dataInstallazione)}">
+      <label class="et" for="fPos">Dove si trova a bordo</label><input class="campo" id="fPos" value="${esc(f.posizioneTesto)}" placeholder="es. sotto la cuccetta di poppa">
+      <label class="et" for="fNote">Note</label><textarea class="campo" id="fNote">${esc(f.note)}</textarea>
+
+      <div class="card sabbia" style="margin-top:22px"><h3>📅 Manutenzione programmata</h3>
+        <p class="muted piccolo">Lascia vuoto se non serve. Se compili entrambi, conta quello che arriva prima.</p>
+        <div class="due">
+          <div><label class="et" for="fMesi">Ogni quanti mesi</label><input class="campo" id="fMesi" type="number" inputmode="numeric" min="0" value="${esc(f.manutenzione.mesi)}" placeholder="es. 12"></div>
+          <div><label class="et" for="fOre">Ogni quante ore</label><input class="campo" id="fOre" type="number" inputmode="numeric" min="0" value="${esc(f.manutenzione.ore)}" placeholder="es. 200"></div>
+          <div><label class="et" for="fUltData">Ultima volta il</label><input class="campo" id="fUltData" type="date" value="${esc(f.manutenzione.ultimaData)}"></div>
+          <div><label class="et" for="fUltOre">A quante ore</label><input class="campo" id="fUltOre" type="number" inputmode="decimal" value="${esc(f.manutenzione.ultimeOre)}"></div>
+        </div>
+      </div>
+      <div class="barra-salva"><button class="btn primary blocco" data-f="salva">Salva</button></div>`,
+    monta(el){
+      $("#fIcone", el).addEventListener("click", e => {
+        const b = e.target.closest("button[data-ic]"); if (!b) return;
+        $$("#fIcone button", el).forEach(x => x.classList.remove("on")); b.classList.add("on"); f.icona = b.dataset.ic;
+      });
+      $("[data-f=salva]", el).addEventListener("click", () => {
+        const v = x => $(x, el).value.trim();
+        if (!v("#fNome")){ toast("Scrivi il nome del sistema"); $("#fNome", el).focus(); return; }
+        const dati = { nome:v("#fNome"), icona:f.icona, categoria:v("#fCat"), marca:v("#fMarca"), modello:v("#fModello"), matricola:v("#fMatr"),
+          anno:v("#fAnno"), dataInstallazione:v("#fInst"), posizioneTesto:v("#fPos"), note:v("#fNote"),
+          manutenzione:{ mesi:numOVuoto(v("#fMesi")), ore:numOVuoto(v("#fOre")), ultimaData:v("#fUltData"), ultimeOre:numOVuoto(v("#fUltOre")) } };
+        if (esist){ Object.assign(esist, dati); salva(); chiudiTop(); toast("Dati salvati ✓"); }
+        else {
+          const s = Object.assign(f, dati); s.pos = posizioniIniziali(s.categoria, null);
+          S.sistemi.push(s); salva(); sostituisciTop(renderScheda(s.id), { vivo:true });
+          toast(`Aggiunto: ${esc(s.nome)}.<br>Con “✋ Sposta icone” lo metti al posto giusto.`);
+        }
+      });
+    }
+  });
+  if (sostituisci) sostituisciTop(render); else apriSheet(render);
+}
+
+/* ---------- Modulo: intervento ---------- */
+function formIntervento(opz = {}){
+  const esist = opz.id ? S.interventi.find(i => i.id === opz.id) : null;
+  const f = esist ? clona(esist) : { sistemaId:opz.sistemaId || "", data:oggi(), tipo:"Manutenzione ordinaria", descrizione:opz.descrizione || "",
+    chi:"fdt", officina:"", costo:"", ricambi:"", oreMotore:S.barca.oreMotore || "", fotoPrima:[], fotoDopo:[], statoDopo:"ok" };
+  const nuove = [], daEliminare = [];
+  let salvato = false;
+  const apri = opz.sostituisci ? sostituisciTop : apriSheet;
+  apri(() => ({
+    titolo: esist ? "Modifica intervento" : "Nuovo intervento",
+    html:`
+      <label class="et" for="iSis" style="margin-top:0">Sistema</label>
+      <select class="campo" id="iSis"><option value="">— scegli —</option>
+        ${S.sistemi.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(s => `<option value="${s.id}" ${f.sistemaId === s.id ? "selected" : ""}>${esc(s.icona + " " + s.nome)}</option>`).join("")}</select>
+      <label class="et">Tipo di intervento</label>
+      <div class="scelta" id="iTipo">${TIPI.map(t => `<button type="button" data-t="${t}" class="${f.tipo === t ? "on" : ""}">${t}</button>`).join("")}</div>
+      <label class="et" for="iData">Data</label><input class="campo" id="iData" type="date" value="${esc(f.data)}">
+      <label class="et" for="iDescr">Cosa è stato fatto</label><textarea class="campo" id="iDescr" placeholder="es. Cambiato olio e filtri">${esc(f.descrizione)}</textarea>
+      <label class="et">Chi l'ha fatto</label>
+      <div class="scelta" id="iChi"><button type="button" data-c="fdt" class="${f.chi === "fdt" ? "on" : ""}">🙋 Fai da te</button><button type="button" data-c="off" class="${f.chi === "off" ? "on" : ""}">🏭 Officina / meccanico</button></div>
+      <input class="campo" id="iOff" value="${esc(f.officina)}" placeholder="Nome officina o meccanico" style="margin-top:8px;${f.chi === "off" ? "" : "display:none"}">
+      <div class="due">
+        <div><label class="et" for="iCosto">Costo (€)</label><input class="campo" id="iCosto" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(f.costo)}"></div>
+        <div><label class="et" for="iOre">Ore motore</label><input class="campo" id="iOre" type="number" inputmode="decimal" step="0.1" value="${esc(f.oreMotore)}"></div>
+      </div>
+      <label class="et" for="iRic">Ricambi usati (uno per riga, con codice)</label>
+      <textarea class="campo" id="iRic" placeholder="es. Filtro gasolio – cod. 3838852">${esc(f.ricambi)}</textarea>
+      <label class="et">Foto prima</label><div id="iFP"></div><button type="button" class="btn blocco" data-f="fotoPrima">📷 Aggiungi foto “prima”</button>
+      <label class="et">Foto dopo</label><div id="iFD"></div><button type="button" class="btn blocco" data-f="fotoDopo">📷 Aggiungi foto “dopo”</button>
+      <label class="et">Dopo l'intervento il sistema è:</label>
+      <div class="griglia-stati" id="iStato">${Object.keys(STATI).map(k => `<button type="button" class="st-${k} ${f.statoDopo === k ? "on" : ""}" data-s="${k}">${STATI[k].em} ${STATI[k].nome}</button>`).join("")}</div>
+      <label class="check-riga" id="iAzzWrap"><input type="checkbox" id="iAzz" ${!esist && f.tipo !== "Guasto segnalato" && f.tipo !== "Riparazione" ? "checked" : ""}> Riparte da oggi il conto della manutenzione programmata</label>
+      <div class="barra-salva"><button class="btn primary blocco" data-f="salva">Salva intervento</button>
+        ${esist ? `<button class="btn danger-ghost blocco" data-f="elimina" style="margin-top:10px">🗑️ Elimina intervento</button>` : ""}</div>`,
+    monta(el){
+      const fotoBox = () => {
+        $("#iFP", el).innerHTML = f.fotoPrima.length ? grigliaFoto(f.fotoPrima, "ivp") : "";
+        $("#iFD", el).innerHTML = f.fotoDopo.length ? grigliaFoto(f.fotoDopo, "ivd") : "";
+        idrataFoto(el);
+      };
+      const mostraAzz = () => {
+        const s = trova($("#iSis", el).value), m = s && s.manutenzione;
+        $("#iAzzWrap", el).style.display = m && (Number(m.mesi) || Number(m.ore)) ? "" : "none";
+      };
+      fotoBox(); mostraAzz();
+      $("#iSis", el).addEventListener("change", mostraAzz);
+      el.addEventListener("click", async e => {
+        const t = e.target.closest("[data-t]"), c = e.target.closest("[data-c]"), st = e.target.closest("[data-s]"), fb = e.target.closest("[data-f]");
+        if (t){ $$("#iTipo button", el).forEach(x => x.classList.toggle("on", x === t)); f.tipo = t.dataset.t;
+          const statoAuto = f.tipo === "Guasto segnalato" ? "ko" : "ok"; f.statoDopo = statoAuto;
+          $$("#iStato button", el).forEach(x => x.classList.toggle("on", x.dataset.s === statoAuto));
+          $("#iAzz", el).checked = ["Manutenzione ordinaria", "Sostituzione", "Controllo"].includes(f.tipo) && !esist; }
+        if (c){ $$("#iChi button", el).forEach(x => x.classList.toggle("on", x === c)); f.chi = c.dataset.c; $("#iOff", el).style.display = f.chi === "off" ? "" : "none"; }
+        if (st){ $$("#iStato button", el).forEach(x => x.classList.toggle("on", x === st)); f.statoDopo = st.dataset.s; }
+        if (fb && (fb.dataset.f === "fotoPrima" || fb.dataset.f === "fotoDopo")){
+          const ids = await scegliFoto(); nuove.push(...ids); f[fb.dataset.f].push(...ids); fotoBox();
+        }
+        if (fb && fb.dataset.f === "salva") salvaIntervento(el);
+        if (fb && fb.dataset.f === "elimina" && await conferma("Eliminare questo intervento dal registro?")){
+          S.interventi = S.interventi.filter(i => i.id !== esist.id);
+          await DB.elimina("foto", [...esist.fotoPrima, ...esist.fotoDopo, ...nuove]).catch(() => {});
+          salvato = true; salva(); chiudiTop(); toast("Intervento eliminato");
+        }
+      });
+      // Foto dentro il modulo: tocco per vedere/eliminare
+      el.addEventListener("click", e => {
+        const b = e.target.closest("[data-act=vediFoto]"); if (!b) return;
+        e.stopPropagation();
+        const id = b.dataset.fotoId, lista = b.dataset.ctx === "ivp" ? f.fotoPrima : f.fotoDopo;
+        apriVisore(id, () => { lista.splice(lista.indexOf(id), 1); daEliminare.push(id); fotoBox(); });
+      }, true);
+    }
+  }), { allaChiusura(){ if (!salvato && nuove.length) DB.elimina("foto", nuove).catch(() => {}); } });
+
+  function salvaIntervento(el){
+    const v = x => $(x, el).value.trim();
+    f.sistemaId = v("#iSis"); if (!f.sistemaId){ toast("Scegli il sistema"); $("#iSis", el).focus(); return; }
+    f.data = v("#iData") || oggi(); f.descrizione = v("#iDescr"); f.officina = v("#iOff");
+    f.costo = numOVuoto(v("#iCosto")); f.oreMotore = numOVuoto(v("#iOre")); f.ricambi = v("#iRic");
+    const s = trova(f.sistemaId);
+    if (esist) Object.assign(esist, f); else S.interventi.push(Object.assign({ id:uid() }, f));
+    // Aggiorna lo stato del sistema solo se è l'intervento più recente
+    const piuRecente = !S.interventi.some(i => i.sistemaId === s.id && i.data > f.data);
+    if (piuRecente){ s.stato = f.statoDopo; if (!s.ultimaVerifica || f.data >= s.ultimaVerifica) s.ultimaVerifica = f.data; }
+    if ($("#iAzz", el).checked && $("#iAzzWrap", el).style.display !== "none"){
+      s.manutenzione.ultimaData = f.data; if (f.oreMotore !== "") s.manutenzione.ultimeOre = f.oreMotore;
+    }
+    if (f.oreMotore !== "" && f.oreMotore > (Number(S.barca.oreMotore) || 0)) aggiornaOre(f.oreMotore);
+    if (opz.todoId){ const t = S.daFare.find(x => x.id === opz.todoId); if (t){ t.fatto = true; t.fattoIl = f.data; } }
+    if (daEliminare.length) DB.elimina("foto", daEliminare).catch(() => {});
+    salvato = true; salva(); chiudiTop(); toast("Intervento salvato ✓");
+  }
+}
+
+/* ---------- Modulo: lavoro da fare ---------- */
+function formTodo(opz = {}){
+  const esist = opz.id ? S.daFare.find(t => t.id === opz.id) : null;
+  const f = esist ? clona(esist) : { titolo:"", sistemaId:opz.sistemaId || "", priorita:"media", note:"" };
+  apriSheet(() => ({
+    titolo: esist ? "Lavoro da fare" : "Nuovo lavoro da fare",
+    html:`
+      <label class="et" for="tTit" style="margin-top:0">Cosa c'è da fare</label>
+      <input class="campo" id="tTit" value="${esc(f.titolo)}" placeholder="es. Cambiare la girante">
+      <label class="et" for="tSis">Sistema (facoltativo)</label>
+      <select class="campo" id="tSis"><option value="">— nessuno —</option>
+        ${S.sistemi.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(s => `<option value="${s.id}" ${f.sistemaId === s.id ? "selected" : ""}>${esc(s.icona + " " + s.nome)}</option>`).join("")}</select>
+      <label class="et">Priorità</label>
+      <div class="scelta" id="tPri">${Object.entries(PRIORITA).map(([k, t]) => `<button type="button" data-p="${k}" class="${f.priorita === k ? "on" : ""}">${t}</button>`).join("")}</div>
+      <label class="et" for="tNote">Note</label><textarea class="campo" id="tNote">${esc(f.note)}</textarea>
+      <div class="barra-salva"><button class="btn primary blocco" data-f="salva">Salva</button>
+        ${esist ? `<button class="btn ok blocco" data-f="fatto" style="margin-top:10px">✓ Fatto: registralo nel registro</button>
+        <button class="btn danger-ghost blocco" data-f="elimina" style="margin-top:10px">🗑️ Elimina</button>` : ""}</div>`,
+    monta(el){
+      el.addEventListener("click", async e => {
+        const p = e.target.closest("[data-p]"), fb = e.target.closest("[data-f]");
+        if (p){ $$("#tPri button", el).forEach(x => x.classList.toggle("on", x === p)); f.priorita = p.dataset.p; }
+        if (!fb) return;
+        const leggi = () => { f.titolo = $("#tTit", el).value.trim(); f.sistemaId = $("#tSis", el).value; f.note = $("#tNote", el).value.trim(); };
+        if (fb.dataset.f === "salva"){
+          leggi(); if (!f.titolo){ toast("Scrivi cosa c'è da fare"); $("#tTit", el).focus(); return; }
+          if (esist) Object.assign(esist, f); else S.daFare.push(Object.assign({ id:uid(), creato:oggi(), fatto:false }, f));
+          salva(); chiudiTop(); toast("Lavoro salvato ✓");
+        }
+        if (fb.dataset.f === "fatto"){ leggi(); Object.assign(esist, f); salva(); completaTodo(esist, true); }
+        if (fb.dataset.f === "elimina" && await conferma("Eliminare questo lavoro da fare?")){
+          S.daFare = S.daFare.filter(t => t.id !== esist.id); salva(); chiudiTop(); toast("Eliminato");
+        }
+      });
+    }
+  }));
+}
+async function completaTodo(t, daModulo){
+  const scelta = t.sistemaId
+    ? await dialogo(`<b>${esc(t.titolo)}</b><br>Vuoi registrarlo anche nel registro lavori?`, [
+        { t:"Sì, registra l'intervento", v:"reg", cls:"primary" }, { t:"No, segna solo come fatto", v:"fatto" }, { t:"Annulla", v:null }])
+    : "fatto";
+  if (!scelta) return;
+  if (scelta === "fatto"){ t.fatto = true; t.fattoIl = oggi(); salva(); if (daModulo) chiudiTop(); else aggiornaTutto(); toast("Fatto ✓"); return; }
+  // Se arrivo dal modulo del lavoro, il modulo intervento prende il suo posto
+  formIntervento({ sistemaId:t.sistemaId, descrizione:t.titolo + (t.note ? "\n" + t.note : ""), todoId:t.id, sostituisci:daModulo });
+}
+
+/* =========================================================
+   BACKUP, RIPRISTINO, STAMPA
+   ========================================================= */
+async function esportaBackup(condividi){
+  try {
+    toast("💾 Preparo il backup…");
+    const foto = await DB.tutte("foto");
+    const json = JSON.stringify({ app:"diario-bordo-barca", versione:1, esportato:new Date().toISOString(), dati:S, foto });
+    const nome = `backup-barca-${slug(S.barca.nome)}-${oggi()}.json`;
+    const blob = new Blob([json], { type:"application/json" });
+    if (condividi){
+      const file = new File([blob], nome, { type:"application/json" });
+      if (navigator.canShare && navigator.canShare({ files:[file] })){
+        await navigator.share({ files:[file], title:"Backup barca " + (S.barca.nome || "") });
+        S.barca.ultimoBackup = oggi(); salva(); aggiornaTutto(); toast("Backup pronto ✓"); return;
+      }
+      toast("Su questo telefono l'invio diretto non c'è: scarico il file.");
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    S.barca.ultimoBackup = oggi(); salva(); aggiornaTutto();
+    toast(`Backup salvato: ${(blob.size / 1048576).toFixed(1)} MB ✓`);
+  } catch(e){ if (e.name !== "AbortError") avviso("Backup non riuscito: " + esc(e.message)); }
+}
+$("#fileBackup").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0]; e.target.value = ""; if (!file) return;
+  try {
+    const b = JSON.parse(await file.text());
+    if (b.app !== "diario-bordo-barca" || !b.dati || !b.dati.barca) throw new Error("questo file non è un backup del Diario di bordo");
+    const quando = b.esportato ? fmtData(b.esportato.slice(0, 10)) : "data sconosciuta";
+    const ok = await conferma(`Ripristinare il backup di <b>${esc(b.dati.barca.nome || "barca")}</b> del ${quando}?<br><br>I dati attuali su questo telefono verranno sostituiti.`, "Ripristina", "primary");
+    if (!ok) return;
+    await DB.svuota("foto");
+    const coppie = Object.entries(b.foto || {});
+    for (let i = 0; i < coppie.length; i += 20) await DB.molti("foto", coppie.slice(i, i + 20));
+    fotoCache.clear();
+    S = normalizza(b.dati); delete S.primoAvvio;
+    await DB.scrivi("dati", "stato", S);
+    applicaTema(); vista = "barca"; renderTutto(); toast("Backup ripristinato ✓");
+  } catch(err){
+    if (err && err.name === "QuotaExceededError") erroreMemoria(err);
+    else avviso("Non riesco a leggere il backup: " + esc(err.message));
+  }
+});
+function stampaRegistro(){
+  const lista = S.interventi.length && (filtriReg.sistema || filtriReg.anno || filtriReg.tipo) && vista === "registro" ? interventiFiltrati() : S.interventi.slice().sort((a, b) => b.data.localeCompare(a.data));
+  const perAnno = {}; lista.forEach(i => { const a = i.data.slice(0, 4); perAnno[a] = (perAnno[a] || 0) + (Number(i.costo) || 0); });
+  const b = S.barca;
+  $("#stampa").innerHTML = `
+    <h1>Registro manutenzione – ${esc(b.nome || "Barca")}</h1>
+    <p>${b.tipo === "vela" ? "Barca a vela" : "Barca a motore"}, ${fmtOre(b.lunghezza)} m${b.modello ? " – " + esc(b.modello) : ""}${b.porto ? " – porto: " + esc(b.porto) : ""}<br>
+    Ore motore: ${fmtOre(b.oreMotore)} – stampato il ${fmtData(oggi())}</p>
+    <h2>Stato degli impianti</h2>
+    <table><tr><th>Sistema</th><th>Marca / modello</th><th>Stato</th><th>Ultima verifica</th><th>Prossima manutenzione</th></tr>
+      ${S.sistemi.slice().sort((a, c) => a.nome.localeCompare(c.nome)).map(s => { const sc = scadenza(s), st = effStato(s);
+        return `<tr><td>${esc(s.nome)}</td><td>${esc([s.marca, s.modello].filter(Boolean).join(" "))}</td><td>${STATI[st].nome}</td><td>${fmtData(s.ultimaVerifica)}</td><td>${sc && sc.data ? fmtData(sc.data) : ""}${sc && sc.ore != null ? (sc.data ? " / " : "") + fmtOre(sc.ore) + " h" : ""}</td></tr>`; }).join("")}</table>
+    <h2>Interventi (${lista.length})</h2>
+    <table><tr><th>Data</th><th>Sistema</th><th>Tipo</th><th>Descrizione e ricambi</th><th>Eseguito da</th><th>Ore</th><th class="num">Costo</th></tr>
+      ${lista.map(i => { const s = trova(i.sistemaId); return `<tr><td>${fmtData(i.data)}</td><td>${esc(s ? s.nome : "—")}</td><td>${esc(i.tipo)}</td>
+        <td>${esc(i.descrizione)}${i.ricambi ? "<br><i>Ricambi:</i> " + esc(i.ricambi).replace(/\n/g, "; ") : ""}</td>
+        <td>${esc(i.chi === "off" ? i.officina || "Officina" : "Fai da te")}</td><td>${i.oreMotore !== "" && i.oreMotore != null ? fmtOre(i.oreMotore) : ""}</td><td class="num">${Number(i.costo) ? fmtEuro(i.costo) : ""}</td></tr>`; }).join("")}</table>
+    <h2>Spese per anno</h2>
+    <table>${Object.keys(perAnno).sort().reverse().map(a => `<tr><td>${a}</td><td class="num">${fmtEuro(perAnno[a])}</td></tr>`).join("")}
+      <tr><th>Totale</th><th class="num">${fmtEuro(Object.values(perAnno).reduce((t, x) => t + x, 0))}</th></tr></table>`;
+  setTimeout(() => window.print(), 50);
+}
+
+/* =========================================================
+   AZIONI (tutti i tocchi passano da qui)
+   ========================================================= */
+const AZ = {
+  vai(el){ vista = el.dataset.v; modoSposta = false; while (sheets.length){ const sh = sheets.pop(); sh.el.remove(); } aggiornaVelo(); renderTutto(); window.scrollTo(0, 0); if (vista === "impostazioni") mostraSpazio(); },
+  disegno(el){ vistaDisegno = el.dataset.v; renderMain(); },
+  filtraStato(el){ filtroStato = filtroStato === el.dataset.v ? "tutti" : el.dataset.v; if (el.dataset.v === "tutti") filtroStato = "tutti";
+    if (vista !== "barca"){ vista = "barca"; renderNav(); } renderMain(); },
+  sposta(){ modoSposta = !modoSposta; if (modoSposta) filtroStato = "tutti"; renderMain(); if (!modoSposta) toast("Posizioni salvate ✓"); },
+  catalogo(){ apriCatalogo(); },
+  aggiungiCat(el){ aggiungiDaCatalogo(el.dataset.cat, el.dataset.id); },
+  personalizzato(){ formSistema(null, true); },
+  scheda(el){ apriScheda(el.dataset.id); },
+  chiudi(){ chiudiTop(); },
+  verificato(el){ const s = trova(el.dataset.id); s.stato = "ok"; s.ultimaVerifica = oggi(); salva(); aggiornaTutto(); toast("Segnato come verificato oggi ✓"); },
+  setStato(el){ const s = trova(el.dataset.id); s.stato = el.dataset.v; s.ultimaVerifica = oggi(); salva(); aggiornaTutto(); toast(`Stato: ${STATI[el.dataset.v].nome}`); },
+  nuovoIntervento(el){ if (!S.sistemi.length){ toast("Prima aggiungi un sistema alla barca"); return; } formIntervento({ sistemaId:el.dataset.id }); },
+  apriIntervento(el){ formIntervento({ id:el.dataset.id }); },
+  nuovoTodo(el){ formTodo({ sistemaId:el.dataset.id }); },
+  apriTodo(el){ formTodo({ id:el.dataset.id }); },
+  todoFatto(el){ const t = S.daFare.find(x => x.id === el.dataset.id); if (t) completaTodo(t, false); },
+  todoRiapri(el){ const t = S.daFare.find(x => x.id === el.dataset.id); if (t){ t.fatto = false; delete t.fattoIl; salva(); aggiornaTutto(); } },
+  modificaSistema(el){ formSistema(el.dataset.id); },
+  async eliminaSistema(el){
+    const s = trova(el.dataset.id); const iv = S.interventi.filter(i => i.sistemaId === s.id);
+    if (!await conferma(`Eliminare <b>${esc(s.nome)}</b>?${iv.length ? `<br>Verranno eliminati anche ${iv.length} interventi del registro.` : ""}<br>Le foto verranno cancellate.`)) return;
+    const foto = [...s.foto, ...iv.flatMap(i => [...i.fotoPrima, ...i.fotoDopo])];
+    S.sistemi = S.sistemi.filter(x => x.id !== s.id);
+    S.interventi = S.interventi.filter(i => i.sistemaId !== s.id);
+    S.daFare = S.daFare.filter(t => t.sistemaId !== s.id);
+    DB.elimina("foto", foto).catch(() => {}); salva(); chiudiTop(); toast("Sistema eliminato");
+  },
+  async fotoSistema(el){ const s = trova(el.dataset.id); const ids = await scegliFoto(); if (ids.length){ s.foto.push(...ids); salva(); aggiornaTutto(); toast("Foto salvata ✓"); } },
+  vediFoto(el){
+    const id = el.dataset.fotoId, ctx = el.dataset.ctx || "";
+    if (ctx.startsWith("sis:")){
+      const s = trova(ctx.slice(4));
+      apriVisore(id, () => { s.foto = s.foto.filter(x => x !== id); DB.elimina("foto", [id]).catch(() => {}); salva(); aggiornaTutto(); });
+    } else apriVisore(id, null);
+  },
+  oreQuick(el){ const i = $("#oreNuove"); i.value = Math.round(((Number(i.value) || 0) + Number(el.dataset.v)) * 10) / 10; },
+  async salvaOre(){
+    const n = Number($("#oreNuove").value);
+    if ($("#oreNuove").value === "" || isNaN(n) || n < 0){ toast("Scrivi le ore del contaore"); return; }
+    if (n < (Number(S.barca.oreMotore) || 0) && !await conferma(`Le ore inserite (${fmtOre(n)}) sono meno di quelle salvate (${fmtOre(S.barca.oreMotore)}).<br>Vuoi correggerle?`, "Sì, correggi", "primary")) return;
+    aggiornaOre(n); salva(); document.activeElement.blur(); aggiornaTutto(); toast("Ore motore salvate ✓");
+  },
+  esporta(){ esportaBackup(false); },
+  condividi(){ esportaBackup(true); },
+  importa(){ $("#fileBackup").click(); },
+  stampa(){ stampaRegistro(); },
+  bTipo(el){ S.barca.tipo = el.dataset.v; salva(); aggiornaTutto(); },
+  salvaBarca(){
+    S.barca.nome = $("#bNome").value.trim(); S.barca.lunghezza = Number($("#bLung").value) || S.barca.lunghezza;
+    S.barca.porto = $("#bPorto").value.trim(); S.barca.modello = $("#bModello").value.trim();
+    salva(); aggiornaTutto(); toast("Dati della barca salvati ✓");
+  },
+  tema(el){ S.ui.tema = el.dataset.v; applicaTema(); salva(); renderMain(); },
+  async cancellaEsempio(){
+    if (!await conferma("Cancellare i dati di esempio?<br>I sistemi e gli interventi inseriti da te restano.", "Cancella esempi")) return;
+    const ids = new Set(S.sistemi.filter(s => s.esempio).map(s => s.id));
+    const foto = S.sistemi.filter(s => s.esempio).flatMap(s => s.foto);
+    S.sistemi = S.sistemi.filter(s => !s.esempio);
+    S.interventi = S.interventi.filter(i => !i.esempio && !ids.has(i.sistemaId));
+    S.daFare = S.daFare.filter(t => !t.esempio && !ids.has(t.sistemaId));
+    S.barca.storicoOre = (S.barca.storicoOre || []).filter(r => !r.esempio);
+    if (S.barca.oreDaEsempio){ S.barca.oreMotore = S.barca.storicoOre.length ? S.barca.storicoOre[S.barca.storicoOre.length - 1].ore : 0; delete S.barca.oreDaEsempio; }
+    DB.elimina("foto", foto).catch(() => {}); salva(); aggiornaTutto(); toast("Dati di esempio cancellati ✓");
+  },
+  async cancellaTutto(){
+    if (!await conferma("Cancellare <b>tutti</b> i dati di questa app?<br>Sistemi, interventi, foto e impostazioni verranno eliminati da questo telefono.", "Sì, cancella tutto")) return;
+    if (!await conferma("Ultima conferma: l'operazione non si può annullare.", "Cancella definitivamente")) return;
+    await DB.svuota("foto").catch(() => {}); await DB.svuota("dati").catch(() => {});
+    fotoCache.clear(); S = null; vista = "barca"; renderTutto();
+  },
+  wTipo(el){ tipoBenvenuto = el.dataset.v; $$(".benvenuto .seg button").forEach(b => b.classList.toggle("on", b.dataset.v === tipoBenvenuto)); },
+  avvia(el){
+    S = normalizza({ barca:{ nome:$("#wNome").value.trim() || (el.dataset.v === "esempio" ? "Stella Marina" : "La mia barca"),
+      tipo:tipoBenvenuto, lunghezza:Number($("#wLung").value) || 10 } });
+    if (el.dataset.v === "esempio") datiEsempio();
+    salva(); vista = "barca"; renderTutto();
+    if (el.dataset.v === "zero") setTimeout(() => toast("Tocca “+ Aggiungi sistema” per iniziare"), 300);
+  }
+};
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const f = AZ[el.dataset.act]; if (f){ e.preventDefault(); f(el, e); }
+});
+document.addEventListener("change", e => {
+  const el = e.target.closest("[data-chg]"); if (!el) return;
+  const k = el.dataset.chg;
+  if (k === "filtroCat"){ filtroCat = el.value; renderMain(); }
+  if (k === "nomi"){ S.ui.nomi = el.checked; salva(); renderMain(); }
+  if (k === "regSistema"){ filtriReg.sistema = el.value; renderMain(); }
+  if (k === "regAnno"){ filtriReg.anno = el.value; renderMain(); }
+  if (k === "regTipo"){ filtriReg.tipo = el.value; renderMain(); }
+});
+
+/* =========================================================
+   TEMA, ICONA E AVVIO
+   ========================================================= */
+function applicaTema(){
+  const t = S && S.ui ? S.ui.tema : "auto";
+  if (t === "chiaro") document.documentElement.dataset.theme = "light";
+  else if (t === "scuro") document.documentElement.dataset.theme = "dark";
+  else delete document.documentElement.dataset.theme;
+}
+/* Disegna l'icona dell'app (per la schermata Home) */
+function creaIcona(){
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 192; const x = c.getContext("2d");
+    x.fillStyle = "#0b2545"; x.fillRect(0, 0, 192, 192);
+    x.fillStyle = "#e6d3a3"; x.fillRect(0, 140, 192, 52);
+    x.font = "110px serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("⚓", 96, 86);
+    const url = c.toDataURL("image/png");
+    $("#appleIcon").href = url; $("#favIcon").href = url;
+    const man = { name:"Diario di bordo", short_name:"Barca", start_url:location.href.split("#")[0], display:"standalone",
+      background_color:"#0b2545", theme_color:"#0b2545", icons:[{ src:url, sizes:"192x192", type:"image/png" }] };
+    $("#manifestLink").href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
+  } catch(_){}
+}
+async function avvio(){
+  creaIcona();
+  try { await DB.apri(); S = await DB.leggi("dati", "stato") || null; }
+  catch(e){ S = null; setTimeout(() => avviso("⚠️ Questo browser non permette di salvare i dati (forse sei in navigazione privata). Puoi provare l'app, ma alla chiusura i dati si perdono."), 500); }
+  if (S) normalizza(S);
+  applicaTema(); renderTutto();
+  // Chiede al browser di non cancellare i dati per liberare spazio
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  // Funzionamento offline completo quando l'app è pubblicata su un sito (serve il file sw.js accanto)
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+avvio();
+</script>
+</body>
+</html>
